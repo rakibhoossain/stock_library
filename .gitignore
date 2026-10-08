@@ -1,0 +1,120 @@
+# ==============================================================================
+# Stock Library - Root Git Ignore File
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# Operating System & Environment
+# ------------------------------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ------------------------------------------------------------------------------
+# IDEs & Editors
+# ------------------------------------------------------------------------------
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~
+
+# ------------------------------------------------------------------------------
+# Environment & Secrets (Never commit credentials)
+# ------------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+!.env.sample
+backend/.env
+web/.env.local
+web/.env.development.local
+web/.env.test.local
+web/.env.production.local
+*.pem
+*.key
+*.cert
+
+# ------------------------------------------------------------------------------
+# Go Backend
+# ------------------------------------------------------------------------------
+# Compiled binaries
+/backend/bin/
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test artifacts
+*.test
+*.out
+coverage.txt
+coverage.html
+profile.out
+
+# Local Uploads & Temporary Media Files
+backend/uploads/*
+!backend/uploads/.gitkeep
+uploads/*
+!uploads/.gitkeep
+tmp/
+temp/
+
+# ------------------------------------------------------------------------------
+# Node.js / Next.js Web Frontend
+# ------------------------------------------------------------------------------
+# Dependencies
+node_modules/
+web/node_modules/
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# Next.js build outputs
+.next/
+web/.next/
+out/
+web/out/
+build/
+web/build/
+dist/
+
+# TypeScript build cache
+*.tsbuildinfo
+next-env.d.ts
+
+# Vercel deployment artifacts
+.vercel/
+
+# Logs & Debugging
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-debug.log*
+lerna-debug.log*
+
+# ------------------------------------------------------------------------------
+# Database & Docker Volumes
+# ------------------------------------------------------------------------------
+postgres_data/
+pgdata/
+*.dump
+*.sql.gz
+*.sql.bak
+docker-compose.override.yml
