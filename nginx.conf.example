@@ -1,14 +1,20 @@
-# Nginx virtual host configuration for Fabric Stock Library
-# Place in /etc/nginx/sites-available/stock_library and symlink to /etc/nginx/sites-enabled/
+# Nginx configuration for Fabric Stock Library at /var/www/stock_library
+# Symlink or copy to /etc/nginx/sites-available/stock_library
+# ln -s /etc/nginx/sites-available/stock_library /etc/nginx/sites-enabled/
+# sudo nginx -t && sudo systemctl reload nginx
 
 server {
     listen 80;
-    server_name stock.yourdomain.com; # Replace with your server domain or IP
+    server_name fabric.matrixglobalplatform.com;
 
-    # Max upload size for high-resolution fabric swatch images
+    # Root directory pointing to the static Next.js export
+    root /var/www/stock_library/web/out;
+    index index.html;
+
+    # Allow high-resolution swatch image uploads
     client_max_body_size 50M;
 
-    # Gzip compression for static files
+    # Gzip compression for fast static delivery
     gzip on;
     gzip_vary on;
     gzip_proxied any;
@@ -27,19 +33,23 @@ server {
         proxy_connect_timeout 60s;
     }
 
-    # 2. Next.js hashed static assets (long-term cache)
+    # 2. Immutable caching for Next.js hashed JS/CSS assets
     location /_next/static/ {
-        alias /var/www/stock_library/web/out/_next/static/; # Update with your project path
         expires 1y;
         access_log off;
         add_header Cache-Control "public, max-age=31536000, immutable";
     }
 
-    # 3. Static Next.js frontend pages and root
+    # 3. Static media caching (logo.png, icons, fonts)
+    location ~* \.(ico|png|jpg|jpeg|svg|webp|woff2?|ttf)$ {
+        expires 30d;
+        access_log off;
+        add_header Cache-Control "public, max-age=2592000";
+    }
+
+    # 4. Static Next.js frontend pages and SPA routing
     location / {
-        root /var/www/stock_library/web/out; # Update with your project path
-        index index.html;
-        # Tries direct file -> Next.js HTML page -> directory -> SPA fallback
+        # Tries exact file -> Next.js pre-rendered HTML ($uri.html) -> directory -> SPA root
         try_files $uri $uri.html $uri/ /index.html;
     }
 }
