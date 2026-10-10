@@ -8,7 +8,7 @@ services:
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
     ports:
-      - "${DB_PORT_HOST:-5433}:5432"
+      - "${DB_PORT_HOST:-${DB_PORT:-5433}}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql
       - ./init-db:/docker-entrypoint-initdb.d
@@ -44,32 +44,12 @@ services:
       AWS_S3_KEY_SECRET: ${AWS_S3_KEY_SECRET:-}
       AWS_S3_BUCKET: ${AWS_S3_BUCKET:-pantoneclosbucket}
     ports:
-      - "${BACKEND_PORT:-8088}:8088"
+      - "${BACKEND_PORT:-${PORT:-8088}}:8088"
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:8088/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 3
-
-  web:
-    image: stock_library-web:latest
-    build:
-      context: ./web
-      dockerfile: Dockerfile
-      args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-}
-    container_name: stock_library_web
-    restart: always
-    depends_on:
-      backend:
-        condition: service_healthy
-    environment:
-      PORT: 3000
-      NODE_ENV: production
-      INTERNAL_BACKEND_URL: http://backend:8088
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-}
-    ports:
-      - "${WEB_PORT:-3050}:3000"
 
 volumes:
   postgres_data:

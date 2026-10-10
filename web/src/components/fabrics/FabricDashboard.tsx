@@ -41,6 +41,7 @@ import {
   parseAsInteger,
   parseAsStringLiteral,
 } from "nuqs";
+import Image from "next/image";
 
 export const fabricFilterParsers = {
   search: parseAsString.withDefault(""),
@@ -396,8 +397,8 @@ export function FabricDashboard() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
           {/* Logo & System Badges */}
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-500 flex items-center justify-center text-white shadow-md shadow-indigo-500/20">
-              <Layers className="h-5 w-5" />
+            <div>
+              <Image src="/logo.png" alt="Logo" width={40} height={40} />
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -560,7 +561,7 @@ export function FabricDashboard() {
               <Button
                 size="sm"
                 onClick={() => {
-                  window.open(`/presentations/${activeFilteredPresentation.id}`, "_blank");
+                  window.open(`/presentations?id=${activeFilteredPresentation.id}`, "_blank");
                 }}
                 className="h-8 text-xs rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold gap-1.5 shadow-xs"
                 title="Open presentation deck in clean, dedicated viewer"

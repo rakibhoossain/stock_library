@@ -159,7 +159,7 @@ export const PresentationListModal: React.FC<PresentationListModalProps> = ({
     }
     onClose();
     // Launch dedicated presentation page in a new window/tab so internal data is never exposed
-    window.open(`/presentations/${presentation.id}`, "_blank");
+    window.open(`/presentations?id=${presentation.id}`, "_blank");
   };
 
   const handleDelete = async (presentation: Presentation) => {

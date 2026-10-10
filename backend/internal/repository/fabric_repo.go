@@ -171,6 +171,19 @@ func (r *FabricRepository) GetByID(id uuid.UUID) (*models.Fabric, error) {
 	return &fabric, nil
 }
 
+func (r *FabricRepository) GetByArticleNo(articleNo string) (*models.Fabric, error) {
+	var fabric models.Fabric
+	query := fmt.Sprintf("%s WHERE f.article_no = $1 ORDER BY f.created_at DESC LIMIT 1", baseFabricSelect)
+	err := r.db.Get(&fabric, query, articleNo)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &fabric, nil
+}
+
 func (r *FabricRepository) Create(fabric *models.Fabric) error {
 	if fabric.ID == uuid.Nil {
 		fabric.ID = uuid.New()

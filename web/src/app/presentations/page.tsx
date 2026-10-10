@@ -1,17 +1,17 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import React, { Suspense, useEffect, useState } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { PresentationDetail } from "@/types/fabric";
 import { api } from "@/lib/api";
 import { SlideShowPlayer } from "@/components/presentations/SlideShowPlayer";
 import { Button } from "@/components/ui/button";
 import { Loader2, AlertCircle, ArrowLeft } from "lucide-react";
 
-export default function PresentationPage() {
-  const params = useParams();
+function PresentationDeckView() {
+  const searchParams = useSearchParams();
   const router = useRouter();
-  const presentationId = params?.id as string;
+  const presentationId = searchParams.get("id");
 
   const [presentation, setPresentation] = useState<PresentationDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -20,7 +20,11 @@ export default function PresentationPage() {
   useEffect(() => {
     let cancelled = false;
     const fetchDeck = async () => {
-      if (!presentationId) return;
+      if (!presentationId) {
+        setIsLoading(false);
+        setError("Missing presentation deck ID.");
+        return;
+      }
       setIsLoading(true);
       setError(null);
       try {
@@ -52,7 +56,6 @@ export default function PresentationPage() {
   }, [presentationId]);
 
   const handleExit = () => {
-    // If opened in a popup/new tab, close it; otherwise navigate back to main catalog
     if (typeof window !== "undefined" && window.opener) {
       window.close();
     } else {
@@ -87,7 +90,7 @@ export default function PresentationPage() {
           </div>
           <Button
             onClick={handleExit}
-            className="w-full rounded-xl bg-indigo-600 hover:bg-indigo-700 text-xs font-semibold h-10 gap-2"
+            className="w-full rounded-xl bg-indigo-600 hover:bg-indigo-700 text-xs font-semibold h-10 gap-2 cursor-pointer"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to Fabric Catalog
@@ -106,5 +109,20 @@ export default function PresentationPage() {
         initialSlideIndex={0}
       />
     </div>
+  );
+}
+
+export default function PresentationPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center text-white space-y-4">
+          <Loader2 className="h-10 w-10 animate-spin text-indigo-500" />
+          <p className="text-sm font-semibold tracking-wide text-zinc-200">Loading...</p>
+        </div>
+      }
+    >
+      <PresentationDeckView />
+    </Suspense>
   );
 }

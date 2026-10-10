@@ -6,6 +6,7 @@ import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Lock, Mail, Loader2, Sparkles, AlertCircle, ShieldCheck, Shirt } from "lucide-react";
+import Image from "next/image";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -53,8 +54,8 @@ export default function LoginPage() {
         <div className="bg-zinc-900/90 border border-zinc-800 backdrop-blur-xl rounded-3xl p-8 shadow-2xl shadow-indigo-950/40">
           {/* Header branding */}
           <div className="text-center space-y-3 mb-8">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 text-indigo-400 mb-1">
-              <Shirt className="h-7 w-7" />
+            <div className="inline-flex items-center justify-center mb-1">
+              <Image src="/logo.png" alt="Logo" width={40} height={40} />
             </div>
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-white">
@@ -144,32 +145,10 @@ export default function LoginPage() {
                   <ShieldCheck className="h-3.5 w-3.5" />
                   Admin
                 </div>
-                <div className="text-[10px] text-zinc-500 truncate">
-                  Full CRUD & Master
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickFill("merchandiser@stocklibrary.com")}
-                className="p-2.5 text-left rounded-xl border border-zinc-800 bg-zinc-950/40 hover:bg-zinc-800/60 transition-colors text-xs"
-              >
-                <div className="flex items-center gap-1.5 text-emerald-400 font-semibold mb-0.5">
-                  <Shirt className="h-3.5 w-3.5" />
-                  Merchandiser
-                </div>
-                <div className="text-[10px] text-zinc-500 truncate">
-                  Fabric Entry & Sourcing
-                </div>
               </button>
             </div>
           </div>
         </div>
-
-        {/* Security badge footer */}
-        <p className="text-center text-[11px] text-zinc-600 mt-6">
-          Protected by JWT auth & PostgreSQL vector database
-        </p>
       </div>
     </div>
   );

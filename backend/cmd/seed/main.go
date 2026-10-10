@@ -236,9 +236,18 @@ func seedFabrics(catRepo *repository.CategoryRepository, supRepo *repository.Sup
 			PrimaryImageURL:     &imgURL,
 		}
 
-		if err := fabricRepo.Create(fabric); err != nil {
-			log.Printf("Error creating fabric %s: %v", reference, err)
-			continue
+		existing, _ := fabricRepo.GetByArticleNo(reference)
+		if existing != nil {
+			fabric.ID = existing.ID
+			if err := fabricRepo.Update(fabric); err != nil {
+				log.Printf("Error updating fabric %s: %v", reference, err)
+				continue
+			}
+		} else {
+			if err := fabricRepo.Create(fabric); err != nil {
+				log.Printf("Error creating fabric %s: %v", reference, err)
+				continue
+			}
 		}
 
 		// Create vector embedding
