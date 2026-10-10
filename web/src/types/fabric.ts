@@ -112,6 +112,10 @@ export interface Presentation {
   description?: string;
   buyer_name?: string;
   season?: string;
+  welcome_notes?: string;
+  closing_notes?: string;
+  presenter_name?: string;
+  contact_info?: string;
   created_by?: string;
   created_at: string;
   updated_at: string;

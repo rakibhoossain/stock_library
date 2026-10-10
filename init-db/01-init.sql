@@ -154,6 +154,10 @@ CREATE TABLE IF NOT EXISTS presentations (
     description TEXT,
     buyer_name VARCHAR(150),
     season VARCHAR(50),
+    welcome_notes TEXT,
+    closing_notes TEXT,
+    presenter_name VARCHAR(150),
+    contact_info VARCHAR(255),
     created_by UUID REFERENCES users(id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()

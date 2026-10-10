@@ -180,7 +180,13 @@ export const ImageSearchModal: React.FC<ImageSearchModalProps> = ({
                           <div className="font-bold text-sm text-zinc-900 dark:text-zinc-100 flex items-center justify-between">
                             <span>{fabric.article_no}</span>
                             <span className="text-xs font-semibold text-emerald-600">
-                              {formatPrice(fabric.price_amount, fabric.price_unit, fabric.price_notes)}
+                              {formatPrice(
+                                fabric.price_amount,
+                                fabric.price_currency,
+                                fabric.price_unit,
+                                fabric.price_notes,
+                                fabric.price_status
+                              )}
                             </span>
                           </div>
                           <div className="text-xs text-zinc-500 truncate">

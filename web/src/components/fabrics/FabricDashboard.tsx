@@ -35,6 +35,27 @@ import {
   BookmarkMinus,
 } from "lucide-react";
 import { SortingState, VisibilityState } from "@tanstack/react-table";
+import {
+  useQueryStates,
+  parseAsString,
+  parseAsInteger,
+  parseAsStringLiteral,
+} from "nuqs";
+
+export const fabricFilterParsers = {
+  search: parseAsString.withDefault(""),
+  category_id: parseAsString.withDefault(""),
+  supplier_id: parseAsString.withDefault(""),
+  presentation_id: parseAsString.withDefault(""),
+  min_gsm: parseAsInteger,
+  max_gsm: parseAsInteger,
+  sample_holder: parseAsString.withDefault(""),
+  price_status: parseAsString.withDefault(""),
+  sort_by: parseAsString.withDefault("created_at"),
+  sort_order: parseAsStringLiteral(["asc", "desc"] as const).withDefault("desc"),
+  page: parseAsInteger.withDefault(1),
+  limit: parseAsInteger.withDefault(20),
+};
 
 export function FabricDashboard() {
   const router = useRouter();
@@ -54,20 +75,77 @@ export function FabricDashboard() {
   const [totalPages, setTotalPages] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Filters & Pagination
-  const [filter, setFilter] = useState<Partial<FabricFilter>>({
-    page: 1,
-    limit: 20,
-    sort_by: "created_at",
-    sort_order: "desc",
+  // Filters & Pagination synced with URL query parameters via nuqs
+  const [urlParams, setUrlParams] = useQueryStates(fabricFilterParsers, {
+    shallow: true,
   });
 
-  // Table state
-  const [sorting, setSorting] = useState<SortingState>([]);
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({
+  const filter: Partial<FabricFilter> = useMemo(
+    () => ({
+      search: urlParams.search || undefined,
+      category_id: urlParams.category_id || undefined,
+      supplier_id: urlParams.supplier_id || undefined,
+      presentation_id: urlParams.presentation_id || undefined,
+      min_gsm: urlParams.min_gsm ?? undefined,
+      max_gsm: urlParams.max_gsm ?? undefined,
+      sample_holder: urlParams.sample_holder || undefined,
+      price_status: urlParams.price_status || undefined,
+      sort_by: urlParams.sort_by || "created_at",
+      sort_order: (urlParams.sort_order as "asc" | "desc") || "desc",
+      page: urlParams.page || 1,
+      limit: urlParams.limit || 20,
+    }),
+    [urlParams]
+  );
+
+  const COLUMN_STORAGE_KEY = "stock_library_table_columns";
+  const DEFAULT_COLUMN_VISIBILITY: VisibilityState = {
     width_inches: false,
     moq_mcq: true,
-  });
+  };
+
+  const getInitialColumnVisibility = (): VisibilityState => {
+    if (typeof window === "undefined") return DEFAULT_COLUMN_VISIBILITY;
+    try {
+      const saved = localStorage.getItem(COLUMN_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === "object") {
+          return parsed;
+        }
+      }
+    } catch (err) {
+      console.warn("Failed to read column visibility from localStorage:", err);
+    }
+    return DEFAULT_COLUMN_VISIBILITY;
+  };
+
+  // TanStack table sorting state derived from URL query parameters
+  const sorting = useMemo<SortingState>(() => {
+    if (urlParams.sort_by) {
+      return [{ id: urlParams.sort_by, desc: urlParams.sort_order === "desc" }];
+    }
+    return [];
+  }, [urlParams.sort_by, urlParams.sort_order]);
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(getInitialColumnVisibility);
+
+  const handleColumnVisibilityChange = useCallback(
+    (updater: VisibilityState | ((prev: VisibilityState) => VisibilityState)) => {
+      setColumnVisibility((prev) => {
+        const next = typeof updater === "function" ? updater(prev) : updater;
+        try {
+          if (typeof window !== "undefined") {
+            localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(next));
+          }
+        } catch (err) {
+          console.warn("Failed to save column visibility to localStorage:", err);
+        }
+        return next;
+      });
+    },
+    []
+  );
+
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<"table" | "grid">("table");
 
@@ -193,46 +271,68 @@ export function FabricDashboard() {
     };
   }, [filter]);
 
-  // Sync sorting with filter
-  const handleSortingChange = (newSorting: SortingState) => {
-    setSorting(newSorting);
-    if (newSorting.length > 0) {
-      setFilter((prev) => ({
-        ...prev,
-        sort_by: newSorting[0].id,
-        sort_order: newSorting[0].desc ? "desc" : "asc",
-        page: 1,
-      }));
-    } else {
-      setFilter((prev) => ({
-        ...prev,
-        sort_by: "created_at",
-        sort_order: "desc",
-      }));
-    }
-  };
+  // Sync sorting with URL query parameters
+  const handleSortingChange = useCallback(
+    (updaterOrNewSorting: SortingState | ((old: SortingState) => SortingState)) => {
+      const resolved =
+        typeof updaterOrNewSorting === "function"
+          ? updaterOrNewSorting(sorting)
+          : updaterOrNewSorting;
+      if (resolved.length > 0) {
+        setUrlParams({
+          sort_by: resolved[0].id,
+          sort_order: resolved[0].desc ? "desc" : "asc",
+          page: 1,
+        });
+      } else {
+        setUrlParams({
+          sort_by: "created_at",
+          sort_order: "desc",
+          page: 1,
+        });
+      }
+    },
+    [sorting, setUrlParams]
+  );
 
-  const handleFilterChange = (newFilter: Partial<FabricFilter>) => {
-    setFilter((prev) => ({ ...prev, ...newFilter }));
-  };
+  const handleFilterChange = useCallback(
+    (newFilter: Partial<FabricFilter>) => {
+      const next: Parameters<typeof setUrlParams>[0] = {};
+      if ("search" in newFilter) next.search = newFilter.search || "";
+      if ("category_id" in newFilter) next.category_id = newFilter.category_id || "";
+      if ("supplier_id" in newFilter) next.supplier_id = newFilter.supplier_id || "";
+      if ("presentation_id" in newFilter) next.presentation_id = newFilter.presentation_id || "";
+      if ("min_gsm" in newFilter) next.min_gsm = newFilter.min_gsm ?? null;
+      if ("max_gsm" in newFilter) next.max_gsm = newFilter.max_gsm ?? null;
+      if ("sample_holder" in newFilter) next.sample_holder = newFilter.sample_holder || "";
+      if ("price_status" in newFilter) next.price_status = newFilter.price_status || "";
+      if ("sort_by" in newFilter) next.sort_by = newFilter.sort_by || "created_at";
+      if ("sort_order" in newFilter)
+        next.sort_order = (newFilter.sort_order as "asc" | "desc") || "desc";
+      if ("page" in newFilter) next.page = newFilter.page || 1;
+      if ("limit" in newFilter) next.limit = newFilter.limit || 20;
+      setUrlParams(next);
+    },
+    [setUrlParams]
+  );
 
   const handleResetFilters = useCallback(() => {
-    setFilter({
-      page: 1,
-      limit: 20,
+    setUrlParams({
+      search: "",
+      category_id: "",
+      supplier_id: "",
+      presentation_id: "",
+      min_gsm: null,
+      max_gsm: null,
+      sample_holder: "",
+      price_status: "",
       sort_by: "created_at",
       sort_order: "desc",
-      search: "",
-      category_id: undefined,
-      supplier_id: undefined,
-      presentation_id: undefined,
-      min_gsm: undefined,
-      max_gsm: undefined,
-      sample_holder: undefined,
-      price_status: undefined,
+      page: 1,
+      limit: 20,
     });
     setSelectedIds([]);
-  }, []);
+  }, [setUrlParams]);
 
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this fabric swatch?")) return;
@@ -302,11 +402,8 @@ export function FabricDashboard() {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="font-extrabold text-base sm:text-lg tracking-tight">
-                  TEXSTOCK
+                  FabricLibrary
                 </h1>
-                <span className="hidden sm:inline-block px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 font-semibold text-[10px] uppercase tracking-wider">
-                  Fabric Library
-                </span>
               </div>
               <p className="hidden sm:block text-[11px] text-zinc-500">
                 Textile Sourcing & Swatch Intelligence
@@ -433,7 +530,7 @@ export function FabricDashboard() {
           suppliers={suppliers}
           presentations={presentations}
           columnVisibility={columnVisibility}
-          onColumnVisibilityChange={setColumnVisibility}
+          onColumnVisibilityChange={handleColumnVisibilityChange}
           viewMode={viewMode}
           onViewModeChange={setViewMode}
           onOpenMobileFilters={() => setIsMobileFilterOpen(true)}
@@ -596,7 +693,7 @@ export function FabricDashboard() {
             sorting={sorting}
             onSortingChange={handleSortingChange}
             columnVisibility={columnVisibility}
-            onColumnVisibilityChange={setColumnVisibility}
+            onColumnVisibilityChange={handleColumnVisibilityChange}
           />
         )}
 
@@ -877,6 +974,7 @@ export function FabricDashboard() {
 
       {/* 5. Bulk Assign to Presentation Modal */}
       <AssignToPresentationModal
+        key={isAssignModalOpen ? "assign-open" : "assign-closed"}
         isOpen={isAssignModalOpen}
         onClose={() => setIsAssignModalOpen(false)}
         selectedFabricIds={selectedIds}
@@ -893,6 +991,7 @@ export function FabricDashboard() {
 
       {/* 6. Presentations Management & Launcher Modal */}
       <PresentationListModal
+        key={isDeckListModalOpen ? "decks-open" : "decks-closed"}
         isOpen={isDeckListModalOpen}
         onClose={() => setIsDeckListModalOpen(false)}
         presentations={presentations}

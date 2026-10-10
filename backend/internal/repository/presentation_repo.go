@@ -23,8 +23,9 @@ func NewPresentationRepository(db *sqlx.DB) *PresentationRepository {
 func (r *PresentationRepository) List() ([]models.Presentation, error) {
 	query := `
 		SELECT 
-			p.id, p.title, p.description, p.buyer_name, p.season, p.created_by,
-			p.created_at, p.updated_at,
+			p.id, p.title, p.description, p.buyer_name, p.season,
+			p.welcome_notes, p.closing_notes, p.presenter_name, p.contact_info,
+			p.created_by, p.created_at, p.updated_at,
 			COUNT(pi.id)::int AS item_count
 		FROM presentations p
 		LEFT JOIN presentation_items pi ON p.id = pi.presentation_id
@@ -44,8 +45,9 @@ func (r *PresentationRepository) List() ([]models.Presentation, error) {
 func (r *PresentationRepository) GetByID(id uuid.UUID) (*models.PresentationDetail, error) {
 	presQuery := `
 		SELECT 
-			p.id, p.title, p.description, p.buyer_name, p.season, p.created_by,
-			p.created_at, p.updated_at,
+			p.id, p.title, p.description, p.buyer_name, p.season,
+			p.welcome_notes, p.closing_notes, p.presenter_name, p.contact_info,
+			p.created_by, p.created_at, p.updated_at,
 			COUNT(pi.id)::int AS item_count
 		FROM presentations p
 		LEFT JOIN presentation_items pi ON p.id = pi.presentation_id
@@ -107,13 +109,25 @@ func (r *PresentationRepository) Create(req models.CreatePresentationRequest, cr
 	now := time.Now()
 
 	insertQuery := `
-		INSERT INTO presentations (id, title, description, buyer_name, season, created_by, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		RETURNING id, title, description, buyer_name, season, created_by, created_at, updated_at
+		INSERT INTO presentations (
+			id, title, description, buyer_name, season,
+			welcome_notes, closing_notes, presenter_name, contact_info,
+			created_by, created_at, updated_at
+		)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+		RETURNING 
+			id, title, description, buyer_name, season,
+			welcome_notes, closing_notes, presenter_name, contact_info,
+			created_by, created_at, updated_at
 	`
 
 	var pres models.Presentation
-	err = tx.Get(&pres, insertQuery, newID, req.Title, req.Description, req.BuyerName, req.Season, createdBy, now, now)
+	err = tx.Get(
+		&pres, insertQuery,
+		newID, req.Title, req.Description, req.BuyerName, req.Season,
+		req.WelcomeNotes, req.ClosingNotes, req.PresenterName, req.ContactInfo,
+		createdBy, now, now,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -145,13 +159,23 @@ func (r *PresentationRepository) Create(req models.CreatePresentationRequest, cr
 func (r *PresentationRepository) Update(id uuid.UUID, req models.UpdatePresentationRequest) (*models.Presentation, error) {
 	query := `
 		UPDATE presentations
-		SET title = $2, description = $3, buyer_name = $4, season = $5, updated_at = NOW()
+		SET 
+			title = $2, description = $3, buyer_name = $4, season = $5,
+			welcome_notes = $6, closing_notes = $7, presenter_name = $8, contact_info = $9,
+			updated_at = NOW()
 		WHERE id = $1
-		RETURNING id, title, description, buyer_name, season, created_by, created_at, updated_at
+		RETURNING 
+			id, title, description, buyer_name, season,
+			welcome_notes, closing_notes, presenter_name, contact_info,
+			created_by, created_at, updated_at
 	`
 
 	var pres models.Presentation
-	err := r.db.Get(&pres, query, id, req.Title, req.Description, req.BuyerName, req.Season)
+	err := r.db.Get(
+		&pres, query,
+		id, req.Title, req.Description, req.BuyerName, req.Season,
+		req.WelcomeNotes, req.ClosingNotes, req.PresenterName, req.ContactInfo,
+	)
 	if err != nil {
 		return nil, err
 	}

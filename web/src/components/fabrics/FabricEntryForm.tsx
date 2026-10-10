@@ -34,8 +34,11 @@ export const fabricFormSchema = z.object({
   supplier_id: z.string().min(1, "Please select a supplier"),
   composition_raw: z.string().trim().min(2, "Raw composition is required"),
   fibers: z.array(fiberItemSchema).min(1, "Add at least one fiber component"),
-  weight_gsm_min: z.coerce.number().int().positive("Min weight must be positive"),
-  weight_gsm_max: z.coerce.number().int().positive().optional().nullable(),
+  weight_gsm_min: z.coerce.number().int().positive("Weight must be positive"),
+  weight_gsm_max: z.preprocess(
+    (val) => (val === "" || val === null || val === undefined ? undefined : val),
+    z.coerce.number().int().positive("Max weight must be positive").optional().nullable()
+  ),
   width_inches: z.string().trim().optional(),
   construction: z.string().trim().optional(),
   shrinkage: z.string().trim().optional(),
@@ -45,7 +48,10 @@ export const fabricFormSchema = z.object({
   physical_tag: z.string().trim().optional(),
   available_stock_note: z.string().trim().optional(),
   price_status: z.enum(["CONFIRMED", "PENDING", "UPON_REQUEST", "NOT_DISCLOSED"]),
-  price_amount: z.coerce.number().nonnegative().optional().nullable(),
+  price_amount: z.preprocess(
+    (val) => (val === "" || val === null || val === undefined ? undefined : val),
+    z.coerce.number().nonnegative("Price cannot be negative").optional().nullable()
+  ),
   price_currency: z.string().default("USD"),
   price_unit: z.enum(["KG", "YDS", "METER", "PIECE"]),
   price_notes: z.string().trim().optional(),
@@ -693,7 +699,7 @@ export const FabricEntryForm: React.FC<FabricEntryFormProps> = ({
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div>
                 <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
-                  Min Weight (GSM - g/m²) *
+                  Weight (GSM - g/m²) *
                 </label>
                 <div className="relative mt-1">
                   <Input
@@ -712,20 +718,26 @@ export const FabricEntryForm: React.FC<FabricEntryFormProps> = ({
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
-                  Max Weight (GSM - g/m²)
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                    Max Weight (GSM)
+                  </label>
+                  <span className="text-[10px] text-zinc-400 font-normal">Optional</span>
+                </div>
                 <div className="relative mt-1">
                   <Input
                     type="number"
                     {...register("weight_gsm_max")}
-                    placeholder="220"
+                    placeholder="Optional (if range)"
                     className="pr-12"
                   />
                   <span className="absolute right-3 top-2.5 text-[11px] font-medium text-zinc-400">
                     GSM
                   </span>
                 </div>
+                {errors.weight_gsm_max && (
+                  <p className="text-rose-500 text-[11px] mt-1">{errors.weight_gsm_max.message}</p>
+                )}
               </div>
 
               <div>

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { NuqsAdapter } from "nuqs/adapters/next/app";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -13,12 +14,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "TexStock | Fabric Sourcing Library",
+  title: "FabricLibrary | Fabric Sourcing Library",
   description: "Digital Fabric Swatch Management, Visual Search & Technical Sourcing Library",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "TexStock",
+    title: "FabricLibrary",
   },
 };
 
@@ -41,7 +42,7 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-sans bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50">
-        {children}
+        <NuqsAdapter>{children}</NuqsAdapter>
       </body>
     </html>
   );

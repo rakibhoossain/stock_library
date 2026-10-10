@@ -2,12 +2,13 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Fabric, PresentationDetail } from "@/types/fabric";
-import { Button } from "@/components/ui/button";
-import { formatWeight } from "@/lib/utils";
+import { formatWeight, formatPrice } from "@/lib/utils";
 import { generateFabricPresentationDeck } from "@/lib/pptx-export";
 import {
   ChevronLeft,
   ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   Maximize2,
   Minimize2,
   Play,
@@ -36,37 +37,40 @@ export const SlideShowPlayer: React.FC<SlideShowPlayerProps> = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isZoomed, setIsZoomed] = useState(false);
   const [isGridOpen, setIsGridOpen] = useState(false);
-  const [showControls, setShowControls] = useState(true);
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const prevOpenRef = useRef(false);
 
   const items = presentation?.items || [];
-  const currentFabric: Fabric | undefined = items[currentIndex];
+  // Deck structure: Slide 0 = Welcome Cover, Slides 1..N = Swatches, Slide N+1 = Thank You Outro
+  const totalSlides = items.length + 2;
+
+  const isWelcomeSlide = currentIndex === 0;
+  const isClosingSlide = currentIndex === totalSlides - 1;
+  const isFabricSlide = !isWelcomeSlide && !isClosingSlide;
+  const currentFabric: Fabric | undefined = isFabricSlide ? items[currentIndex - 1] : undefined;
 
   // Sync state when opening
   useEffect(() => {
     if (isOpen && !prevOpenRef.current) {
-      setCurrentIndex(Math.min(initialSlideIndex, Math.max(0, items.length - 1)));
+      setCurrentIndex(Math.min(initialSlideIndex, Math.max(0, totalSlides - 1)));
       setIsPlaying(false);
       setIsZoomed(false);
       setIsGridOpen(false);
-      setShowControls(true);
     }
     prevOpenRef.current = isOpen;
-  }, [isOpen, initialSlideIndex, items.length]);
+  }, [isOpen, initialSlideIndex, totalSlides]);
 
   // Navigate functions
   const goToNext = useCallback(() => {
     setIsZoomed(false);
-    setCurrentIndex((prev) => (prev < items.length - 1 ? prev + 1 : 0));
-  }, [items.length]);
+    setCurrentIndex((prev) => (prev < totalSlides - 1 ? prev + 1 : 0));
+  }, [totalSlides]);
 
   const goToPrev = useCallback(() => {
     setIsZoomed(false);
-    setCurrentIndex((prev) => (prev > 0 ? prev - 1 : items.length - 1));
-  }, [items.length]);
+    setCurrentIndex((prev) => (prev > 0 ? prev - 1 : totalSlides - 1));
+  }, [totalSlides]);
 
   const goToSlide = useCallback((index: number) => {
     setIsZoomed(false);
@@ -108,37 +112,10 @@ export const SlideShowPlayer: React.FC<SlideShowPlayerProps> = ({
     };
   }, []);
 
-  // Auto-hide controls timer (Industry standard: hide after 3 seconds of mouse stillness)
-  const resetControlsTimer = useCallback(() => {
-    setShowControls(true);
-    if (controlsTimeoutRef.current) {
-      clearTimeout(controlsTimeoutRef.current);
-    }
-    controlsTimeoutRef.current = setTimeout(() => {
-      // Don't hide controls if grid or zoom is active
-      if (!isGridOpen && !isZoomed) {
-        setShowControls(false);
-      }
-    }, 3000);
-  }, [isGridOpen, isZoomed]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleMouseMove = () => {
-      resetControlsTimer();
-    };
-    window.addEventListener("mousemove", handleMouseMove);
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
-    };
-  }, [isOpen, resetControlsTimer]);
-
-  // Keyboard navigation (Keynote / Google Slides / Pitch standards)
+  // Keyboard navigation
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (!isOpen) return;
-      resetControlsTimer();
 
       if (e.key === "ArrowRight" || e.key === " " || e.key === "PageDown") {
         e.preventDefault();
@@ -146,6 +123,12 @@ export const SlideShowPlayer: React.FC<SlideShowPlayerProps> = ({
       } else if (e.key === "ArrowLeft" || e.key === "PageUp") {
         e.preventDefault();
         goToPrev();
+      } else if (e.key === "Home") {
+        e.preventDefault();
+        goToSlide(0);
+      } else if (e.key === "End") {
+        e.preventDefault();
+        goToSlide(totalSlides - 1);
       } else if (e.key === "Escape") {
         if (isZoomed) {
           setIsZoomed(false);
@@ -158,21 +141,23 @@ export const SlideShowPlayer: React.FC<SlideShowPlayerProps> = ({
         toggleFullscreen();
       } else if (e.key === "g" || e.key === "G") {
         setIsGridOpen((prev) => !prev);
+      } else if (e.key === "p" || e.key === "P") {
+        setIsPlaying((prev) => !prev);
       }
     },
-    [isOpen, isZoomed, isGridOpen, goToNext, goToPrev, handleClose, toggleFullscreen, resetControlsTimer]
+    [isOpen, isZoomed, isGridOpen, goToNext, goToPrev, goToSlide, handleClose, toggleFullscreen, totalSlides]
   );
 
-  // Auto-play timer (advance every 6 seconds)
+  // Auto-play timer
   useEffect(() => {
-    if (!isOpen || !isPlaying || items.length <= 1) return;
+    if (!isOpen || !isPlaying || totalSlides <= 1) return;
 
     const timer = setInterval(() => {
       goToNext();
     }, 6000);
 
     return () => clearInterval(timer);
-  }, [isOpen, isPlaying, items.length, goToNext]);
+  }, [isOpen, isPlaying, totalSlides, goToNext]);
 
   useEffect(() => {
     if (isOpen) {
@@ -191,11 +176,15 @@ export const SlideShowPlayer: React.FC<SlideShowPlayerProps> = ({
 
   if (!isOpen || !presentation || items.length === 0) return null;
 
-  // Format price display matching specimen (e.g. 4.56/kg)
+  // Format price display matching specimen with Intl currency (e.g. $7.85/kg)
   const priceDisplay = currentFabric
-    ? currentFabric.price_amount != null
-      ? `${currentFabric.price_amount}/${(currentFabric.price_unit || "kg").replace(/^\//, "").toLowerCase()}`
-      : currentFabric.price_notes || currentFabric.price_status || "-"
+    ? formatPrice(
+        currentFabric.price_amount,
+        currentFabric.price_currency || "USD",
+        currentFabric.price_unit || "kg",
+        currentFabric.price_notes,
+        currentFabric.price_status
+      )
     : "-";
 
   const widthDisplay = currentFabric?.width_inches
@@ -204,295 +193,401 @@ export const SlideShowPlayer: React.FC<SlideShowPlayerProps> = ({
       : `${currentFabric.width_inches}"`
     : "-";
 
-  const progressPercent = ((currentIndex + 1) / items.length) * 100;
-
   return (
     <div
       ref={containerRef}
-      className={`fixed inset-0 z-[100] bg-zinc-950 flex flex-col text-white select-none animate-in fade-in duration-200 overflow-hidden ${
-        !showControls ? "cursor-none" : ""
-      }`}
+      className="fixed inset-0 z-[100] bg-zinc-950 flex flex-col text-white select-none animate-in fade-in duration-200 overflow-hidden"
     >
-      {/* 1. Sleek Top Progress Bar */}
-      <div className="absolute top-0 inset-x-0 h-1 bg-zinc-800/60 z-30 pointer-events-none">
-        <div
-          className="h-full bg-gradient-to-r from-indigo-500 to-indigo-400 transition-all duration-300 ease-out"
-          style={{ width: `${progressPercent}%` }}
-        />
-      </div>
-
-      {/* 2. Top Title & Quick Actions Bar (Auto-hides on idle) */}
-      <header
-        className={`absolute top-0 inset-x-0 h-14 px-6 bg-gradient-to-b from-black/80 via-black/40 to-transparent flex items-center justify-between z-20 transition-opacity duration-300 ${
-          showControls ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-        }`}
-      >
+      {/* 1. Top Header Bar (Appears strictly on hover at top) */}
+      <header className="absolute top-0 inset-x-0 h-16 px-6 bg-gradient-to-b from-black/80 to-transparent flex items-center justify-between z-30 opacity-0 hover:opacity-100 transition-opacity duration-200">
         <div className="flex items-center gap-3 min-w-0">
-          <span className="px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 text-[10px] font-bold uppercase tracking-wider border border-indigo-500/30">
-            {presentation.season || "Deck"}
-          </span>
-          <h2 className="text-sm font-semibold text-white/90 truncate max-w-sm sm:max-w-md">
+          {presentation.season && (
+            <span className="text-[11px] font-mono tracking-widest uppercase text-zinc-400">
+              {presentation.season}
+            </span>
+          )}
+          <span className="font-semibold text-xs sm:text-sm text-zinc-200 truncate">
             {presentation.title}
-          </h2>
+          </span>
           {presentation.buyer_name && (
-            <span className="text-xs text-zinc-400 font-medium truncate hidden md:inline">
-              • Buyer: {presentation.buyer_name}
+            <span className="hidden md:inline-block text-xs text-zinc-400 truncate border-l border-zinc-800 pl-3">
+              {presentation.buyer_name}
             </span>
           )}
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Export PPTX */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => generateFabricPresentationDeck(items)}
-            className="h-8 px-2.5 rounded-lg text-xs text-zinc-300 hover:text-white hover:bg-white/10 gap-1.5 hidden sm:flex"
-            title="Download PowerPoint (.pptx)"
+          {/* Export PPTX button */}
+          <button
+            type="button"
+            onClick={() => generateFabricPresentationDeck(items, presentation)}
+            className="h-8 px-2.5 rounded-md text-xs text-zinc-300 hover:text-white hover:bg-white/10 border-0 outline-none ring-0 flex items-center gap-1.5 transition-colors"
+            title="Export PowerPoint (.pptx)"
           >
             <Download className="h-3.5 w-3.5" />
-            <span>Export PPTX</span>
-          </Button>
+            <span className="hidden sm:inline">Export PPTX</span>
+          </button>
 
-          {/* Slide Grid / Overview */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setIsGridOpen(true)}
-            className="h-8 px-2.5 rounded-lg text-xs text-zinc-300 hover:text-white hover:bg-white/10 gap-1.5"
-            title="View All Slides Grid (G)"
-          >
-            <LayoutGrid className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Overview</span>
-          </Button>
-
-          {/* Fullscreen Toggle */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={toggleFullscreen}
-            className="h-8 w-8 p-0 rounded-lg text-zinc-300 hover:text-white hover:bg-white/10"
-            title="Toggle Fullscreen (F)"
-          >
-            {isFullscreen ? (
-              <Minimize2 className="h-4 w-4" />
-            ) : (
-              <Maximize2 className="h-4 w-4" />
-            )}
-          </Button>
-
-          {/* Exit Button */}
-          <Button
-            variant="ghost"
-            size="sm"
+          {/* Close presentation button */}
+          <button
+            type="button"
             onClick={handleClose}
-            className="h-8 w-8 p-0 rounded-lg text-zinc-300 hover:text-rose-400 hover:bg-rose-950/40"
+            className="h-8 w-8 rounded-md text-zinc-400 hover:text-white hover:bg-white/10 border-0 outline-none ring-0 flex items-center justify-center transition-colors"
             title="Exit Presentation (Esc)"
           >
             <X className="h-4 w-4" />
-          </Button>
+          </button>
         </div>
       </header>
 
-      {/* 3. Main Presentation Stage */}
-      <main className="flex-1 w-full h-full flex items-center justify-center p-3 sm:p-6 md:p-8 relative">
-        {/* Subtle Side Navigation Click Zones (Keynote / Pitch standard) */}
+      {/* Side Navigation Arrows (Appear on hover) */}
+      {currentIndex > 0 && (
         <button
           type="button"
           onClick={goToPrev}
-          aria-label="Previous Slide"
-          className={`absolute left-0 top-0 bottom-0 w-16 sm:w-24 z-10 flex items-center justify-start pl-3 sm:pl-5 group transition-opacity duration-300 ${
-            showControls ? "opacity-100" : "opacity-0"
-          }`}
+          className="absolute left-3 top-1/2 -translate-y-1/2 z-20 h-12 w-12 rounded-full flex items-center justify-center text-zinc-400 hover:text-white bg-black/40 hover:bg-black/80 opacity-0 hover:opacity-100 transition-opacity border-0 outline-none ring-0"
+          title="Previous Slide"
         >
-          <div className="h-11 w-11 rounded-full bg-black/40 hover:bg-black/75 border border-white/10 backdrop-blur-md flex items-center justify-center text-white/70 group-hover:text-white group-hover:scale-110 transition-all shadow-xl">
-            <ChevronLeft className="h-6 w-6" />
-          </div>
+          <ChevronLeft className="h-6 w-6" />
         </button>
+      )}
 
+      {currentIndex < totalSlides - 1 && (
         <button
           type="button"
           onClick={goToNext}
-          aria-label="Next Slide"
-          className={`absolute right-0 top-0 bottom-0 w-16 sm:w-24 z-10 flex items-center justify-end pr-3 sm:pr-5 group transition-opacity duration-300 ${
-            showControls ? "opacity-100" : "opacity-0"
-          }`}
+          className="absolute right-3 top-1/2 -translate-y-1/2 z-20 h-12 w-12 rounded-full flex items-center justify-center text-zinc-400 hover:text-white bg-black/40 hover:bg-black/80 opacity-0 hover:opacity-100 transition-opacity border-0 outline-none ring-0"
+          title="Next Slide"
         >
-          <div className="h-11 w-11 rounded-full bg-black/40 hover:bg-black/75 border border-white/10 backdrop-blur-md flex items-center justify-center text-white/70 group-hover:text-white group-hover:scale-110 transition-all shadow-xl">
-            <ChevronRight className="h-6 w-6" />
-          </div>
+          <ChevronRight className="h-6 w-6" />
         </button>
+      )}
 
-        {/* Slide Canvas Card: Matches Specimen Layout Perfectly & Fits 100% of Viewport */}
-        <div className="relative w-full max-w-xl sm:max-w-2xl max-h-[88vh] bg-white text-zinc-900 rounded-2xl sm:rounded-3xl shadow-2xl p-3 sm:p-5 flex flex-col gap-3 sm:gap-4 border border-zinc-200/60 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-          {/* Swatch Photo Container with Click-To-Zoom */}
-          <div
-            onClick={() => setIsZoomed(true)}
-            className="relative flex-1 min-h-[220px] max-h-[46vh] sm:max-h-[50vh] rounded-xl sm:rounded-2xl overflow-hidden bg-zinc-50 border border-zinc-200/80 group cursor-zoom-in flex items-center justify-center"
-            title="Click to view high-resolution swatch inspection"
-          >
-            {currentFabric?.primary_image_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={currentFabric.primary_image_url}
-                alt={currentFabric.fabric_name}
-                className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-102"
-              />
-            ) : (
-              <div className="h-full w-full flex items-center justify-center text-xs text-zinc-400">
-                No Swatch Photo Uploaded
+      {/* 2. Main Stage Canvas */}
+      <main className="relative flex-1 w-full h-full flex items-center justify-center px-4 py-8 md:py-12 overflow-hidden">
+        {/* SLIDE A: Welcome / Introduction Cover Slide */}
+        {isWelcomeSlide && (
+          <div className="w-full max-w-3xl h-auto max-h-[calc(100vh-140px)] bg-zinc-900 rounded-2xl shadow-2xl p-8 sm:p-14 flex flex-col justify-center animate-in zoom-in-95 duration-200 overflow-y-auto">
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <h1 className="text-2xl sm:text-4xl md:text-5xl font-bold text-white tracking-tight leading-tight">
+                  {presentation.title}
+                </h1>
+                {presentation.buyer_name && (
+                  <p className="text-base sm:text-lg font-medium text-zinc-300 pt-1">
+                    Prepared for {presentation.buyer_name}
+                  </p>
+                )}
               </div>
-            )}
 
-            {/* Click to Zoom hint */}
-            <div className="absolute bottom-2.5 right-2.5 flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-black/60 backdrop-blur-md text-white text-[11px] font-medium opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-md">
-              <ZoomIn className="h-3 w-3" />
-              <span>Inspect Swatch</span>
+              <div className="h-px w-full bg-zinc-800" />
+
+              {/* User-Provided Welcome / Overview Message (Strictly conditional, zero dummy content) */}
+              {(presentation.welcome_notes?.trim() || presentation.description?.trim()) && (
+                <div className="border-l-2 border-zinc-600 pl-4 py-1 text-sm sm:text-base text-zinc-300 leading-relaxed font-sans">
+                  {presentation.welcome_notes?.trim() || presentation.description?.trim()}
+                </div>
+              )}
+
+              {/* Metadata Row */}
+              <div className="pt-2 flex flex-wrap items-center gap-6 text-xs text-zinc-400">
+                <div>
+                  <span className="text-zinc-500">Collection:</span>{" "}
+                  <strong className="text-zinc-200 font-semibold">{items.length} Swatches</strong>
+                </div>
+                {presentation.season && (
+                  <div>
+                    <span className="text-zinc-500">Season:</span>{" "}
+                    <strong className="text-zinc-200 font-semibold">{presentation.season}</strong>
+                  </div>
+                )}
+                {presentation.presenter_name && (
+                  <div>
+                    <span className="text-zinc-500">Curated By:</span>{" "}
+                    <strong className="text-zinc-200 font-semibold">{presentation.presenter_name}</strong>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
+        )}
 
-          {/* Structured Specification Table (Exact 8 rows as in sample card) */}
-          <div className="w-full shrink-0 overflow-hidden rounded-xl border border-black text-xs font-sans">
-            <table className="w-full border-collapse">
-              <tbody className="divide-y divide-black text-left">
-                <tr>
-                  <td className="w-2/5 p-1.5 sm:px-3 sm:py-1.5 border-r border-black font-semibold text-zinc-900 bg-zinc-50/70 text-[11px] sm:text-xs">
-                    Category
-                  </td>
-                  <td className="w-3/5 p-1.5 sm:px-3 sm:py-1.5 text-zinc-900 font-medium text-[11px] sm:text-xs">
-                    {currentFabric?.category_name || "-"}
-                  </td>
-                </tr>
-                <tr>
-                  <td className="w-2/5 p-1.5 sm:px-3 sm:py-1.5 border-r border-black font-semibold text-zinc-900 bg-zinc-50/70 text-[11px] sm:text-xs">
-                    Fabric
-                  </td>
-                  <td className="w-3/5 p-1.5 sm:px-3 sm:py-1.5 text-zinc-900 font-medium text-[11px] sm:text-xs">
-                    {currentFabric?.fabric_name || "-"}
-                  </td>
-                </tr>
-                <tr>
-                  <td className="w-2/5 p-1.5 sm:px-3 sm:py-1.5 border-r border-black font-semibold text-zinc-900 bg-zinc-50/70 text-[11px] sm:text-xs">
-                    Composition
-                  </td>
-                  <td className="w-3/5 p-1.5 sm:px-3 sm:py-1.5 text-zinc-900 text-[11px] sm:text-xs truncate">
-                    {currentFabric?.composition_raw || "-"}
-                  </td>
-                </tr>
-                <tr>
-                  <td className="w-2/5 p-1.5 sm:px-3 sm:py-1.5 border-r border-black font-semibold text-zinc-900 bg-zinc-50/70 text-[11px] sm:text-xs">
-                    Weight
-                  </td>
-                  <td className="w-3/5 p-1.5 sm:px-3 sm:py-1.5 text-zinc-900 font-mono text-[11px] sm:text-xs">
-                    {currentFabric
-                      ? formatWeight(currentFabric.weight_gsm_min, currentFabric.weight_gsm_max)
-                      : "-"}
-                  </td>
-                </tr>
-                <tr>
-                  <td className="w-2/5 p-1.5 sm:px-3 sm:py-1.5 border-r border-black font-semibold text-zinc-900 bg-zinc-50/70 text-[11px] sm:text-xs">
-                    Width
-                  </td>
-                  <td className="w-3/5 p-1.5 sm:px-3 sm:py-1.5 text-zinc-900 text-[11px] sm:text-xs">
-                    {widthDisplay}
-                  </td>
-                </tr>
-                <tr>
-                  <td className="w-2/5 p-1.5 sm:px-3 sm:py-1.5 border-r border-black font-semibold text-zinc-900 bg-zinc-50/70 text-[11px] sm:text-xs">
-                    Supplier
-                  </td>
-                  <td className="w-3/5 p-1.5 sm:px-3 sm:py-1.5 text-zinc-900 font-medium text-[11px] sm:text-xs truncate">
-                    {currentFabric?.supplier_name || "-"}
-                  </td>
-                </tr>
-                <tr>
-                  <td className="w-2/5 p-1.5 sm:px-3 sm:py-1.5 border-r border-black font-semibold text-zinc-900 bg-zinc-50/70 text-[11px] sm:text-xs">
-                    Contact Person
-                  </td>
-                  <td className="w-3/5 p-1.5 sm:px-3 sm:py-1.5 text-zinc-900 text-[11px] sm:text-xs truncate">
-                    {currentFabric?.supplier_contact || "-"}
-                  </td>
-                </tr>
-                <tr>
-                  <td className="w-2/5 p-1.5 sm:px-3 sm:py-1.5 border-r border-black font-semibold text-zinc-900 bg-zinc-50/70 text-[11px] sm:text-xs">
-                    Price
-                  </td>
-                  <td className="w-3/5 p-1.5 sm:px-3 sm:py-1.5 font-bold text-zinc-900 text-[11px] sm:text-xs">
-                    {priceDisplay}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+        {/* SLIDE B: Fabric Swatch Specimen Slide */}
+        {isFabricSlide && currentFabric && (
+          <div className="w-full max-w-xl md:max-w-2xl h-auto max-h-[calc(100vh-130px)] bg-white rounded-2xl shadow-2xl border border-zinc-200/80 overflow-hidden flex flex-col my-auto transition-all duration-200 animate-in fade-in select-none">
+            {/* Top Swatch Photo */}
+            <div className="relative w-full bg-zinc-100 flex items-center justify-center overflow-hidden group">
+              {currentFabric.primary_image_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={currentFabric.primary_image_url}
+                  alt={currentFabric.fabric_name}
+                  className="w-full h-auto max-h-[46vh] object-contain cursor-zoom-in block"
+                  onClick={() => setIsZoomed(true)}
+                />
+              ) : (
+                <div className="h-44 sm:h-52 flex items-center justify-center text-zinc-400 text-xs font-medium uppercase tracking-wider">
+                  No Swatch Photo Available
+                </div>
+              )}
+
+              {/* Hover Zoom Hint */}
+              {currentFabric.primary_image_url && (
+                <button
+                  type="button"
+                  onClick={() => setIsZoomed(true)}
+                  className="absolute bottom-2.5 right-2.5 p-2 rounded-lg bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/80 border-0 outline-none ring-0"
+                  title="Enlarge Swatch"
+                >
+                  <ZoomIn className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Bottom Technical Specimen Table */}
+            <div className="shrink-0 p-3 sm:p-4.5 bg-white border-t border-zinc-200">
+              <table className="w-full border-collapse border border-black text-xs font-sans">
+                <tbody>
+                  <tr className="border-b border-black">
+                    <td className="w-[32%] p-1.5 sm:px-3 sm:py-1.5 border-r border-black font-semibold text-zinc-900 bg-zinc-50/70 text-[11px] sm:text-xs align-middle">
+                      Category
+                    </td>
+                    <td className="w-[68%] p-1.5 sm:px-3 sm:py-1.5 text-zinc-900 text-[11px] sm:text-xs leading-snug whitespace-normal break-words align-middle">
+                      {currentFabric.category_name || "-"}
+                    </td>
+                  </tr>
+                  <tr className="border-b border-black">
+                    <td className="w-[32%] p-1.5 sm:px-3 sm:py-1.5 border-r border-black font-semibold text-zinc-900 bg-zinc-50/70 text-[11px] sm:text-xs align-middle">
+                      Fabric
+                    </td>
+                    <td className="w-[68%] p-1.5 sm:px-3 sm:py-1.5 font-bold text-zinc-900 text-[11px] sm:text-xs leading-snug whitespace-normal break-words align-middle">
+                      {currentFabric.fabric_name || "-"}
+                    </td>
+                  </tr>
+                  <tr className="border-b border-black">
+                    <td className="w-[32%] p-1.5 sm:px-3 sm:py-1.5 border-r border-black font-semibold text-zinc-900 bg-zinc-50/70 text-[11px] sm:text-xs align-middle">
+                      Composition
+                    </td>
+                    <td className="w-[68%] p-1.5 sm:px-3 sm:py-1.5 text-zinc-900 text-[11px] sm:text-xs leading-snug whitespace-normal break-words align-middle">
+                      {currentFabric.composition_raw || "-"}
+                    </td>
+                  </tr>
+                  <tr className="border-b border-black">
+                    <td className="w-[32%] p-1.5 sm:px-3 sm:py-1.5 border-r border-black font-semibold text-zinc-900 bg-zinc-50/70 text-[11px] sm:text-xs align-middle">
+                      Weight
+                    </td>
+                    <td className="w-[68%] p-1.5 sm:px-3 sm:py-1.5 text-zinc-900 text-[11px] sm:text-xs leading-snug whitespace-normal break-words align-middle">
+                      {formatWeight(currentFabric.weight_gsm_min, currentFabric.weight_gsm_max)}
+                    </td>
+                  </tr>
+                  <tr className="border-b border-black">
+                    <td className="w-[32%] p-1.5 sm:px-3 sm:py-1.5 border-r border-black font-semibold text-zinc-900 bg-zinc-50/70 text-[11px] sm:text-xs align-middle">
+                      Width
+                    </td>
+                    <td className="w-[68%] p-1.5 sm:px-3 sm:py-1.5 text-zinc-900 text-[11px] sm:text-xs leading-snug whitespace-normal break-words align-middle">
+                      {widthDisplay}
+                    </td>
+                  </tr>
+                  <tr className="border-b border-black">
+                    <td className="w-[32%] p-1.5 sm:px-3 sm:py-1.5 border-r border-black font-semibold text-zinc-900 bg-zinc-50/70 text-[11px] sm:text-xs align-middle">
+                      Supplier
+                    </td>
+                    <td className="w-[68%] p-1.5 sm:px-3 sm:py-1.5 text-zinc-900 text-[11px] sm:text-xs leading-snug whitespace-normal break-words align-middle">
+                      {currentFabric.supplier_name || "-"}
+                    </td>
+                  </tr>
+                  <tr className="border-b border-black">
+                    <td className="w-[32%] p-1.5 sm:px-3 sm:py-1.5 border-r border-black font-semibold text-zinc-900 bg-zinc-50/70 text-[11px] sm:text-xs align-middle">
+                      Contact Person
+                    </td>
+                    <td className="w-[68%] p-1.5 sm:px-3 sm:py-1.5 text-zinc-900 text-[11px] sm:text-xs leading-snug whitespace-normal break-words align-middle">
+                      {currentFabric.supplier_contact || "-"}
+                    </td>
+                  </tr>
+                  <tr className="border-b border-black">
+                    <td className="w-[32%] p-1.5 sm:px-3 sm:py-1.5 border-r border-black font-semibold text-zinc-900 bg-zinc-50/70 text-[11px] sm:text-xs align-middle">
+                      Price
+                    </td>
+                    <td className="w-[68%] p-1.5 sm:px-3 sm:py-1.5 font-bold text-zinc-900 text-[11px] sm:text-xs leading-snug whitespace-normal break-words align-middle">
+                      {priceDisplay}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="w-[32%] p-1.5 sm:px-3 sm:py-1.5 border-r border-black font-semibold text-zinc-900 bg-zinc-50/70 text-[11px] sm:text-xs align-middle">
+                      MOQ / MCQ
+                    </td>
+                    <td className="w-[68%] p-1.5 sm:px-3 sm:py-1.5 text-zinc-900 text-[11px] sm:text-xs leading-snug whitespace-normal break-words align-middle">
+                      {(() => {
+                        const cleanMoq =
+                          currentFabric.moq && !currentFabric.moq.toLowerCase().includes("explore")
+                            ? currentFabric.moq
+                            : null;
+                        const cleanMcq =
+                          currentFabric.mcq && !currentFabric.mcq.toLowerCase().includes("explore")
+                            ? currentFabric.mcq
+                            : null;
+                        if (!cleanMoq && !cleanMcq) return "-";
+                        return (
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
+                            <span>
+                              <span className="text-zinc-500 font-medium">MOQ:</span>{" "}
+                              <span className="font-semibold text-zinc-900">{cleanMoq || "-"}</span>
+                            </span>
+                            <span className="text-zinc-300">/</span>
+                            <span>
+                              <span className="text-zinc-500 font-medium">MCQ:</span>{" "}
+                              <span className="font-semibold text-zinc-900">{cleanMcq || "-"}</span>
+                            </span>
+                          </div>
+                        );
+                      })()}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* SLIDE C: Thank You / Closing Slide */}
+        {isClosingSlide && (
+          <div className="w-full max-w-3xl h-auto max-h-[calc(100vh-140px)] bg-zinc-900 rounded-2xl shadow-2xl p-8 sm:p-14 flex flex-col justify-center animate-in zoom-in-95 duration-200 overflow-y-auto">
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <h1 className="text-3xl sm:text-5xl font-bold text-white tracking-tight">
+                  Thank You
+                </h1>
+                <p className="text-base text-zinc-400 pt-1">
+                  We appreciate your partnership and consideration.
+                </p>
+              </div>
+
+              {/* User-Provided Sample Dispatch Notes (Strictly conditional, zero dummy content) */}
+              {presentation.closing_notes?.trim() && (
+                <>
+                  <div className="h-px w-full bg-zinc-800" />
+                  <div className="border-l-2 border-zinc-600 pl-4 py-1 text-sm sm:text-base text-zinc-300 leading-relaxed font-sans">
+                    {presentation.closing_notes.trim()}
+                  </div>
+                </>
+              )}
+
+              {/* User-Provided Contact Information */}
+              {(presentation.contact_info || presentation.presenter_name) && (
+                <div className="pt-2 space-y-1 text-xs text-zinc-400">
+                  {presentation.presenter_name && (
+                    <div>
+                      <span className="text-zinc-500">Presenter:</span>{" "}
+                      <strong className="text-zinc-200 font-semibold">{presentation.presenter_name}</strong>
+                    </div>
+                  )}
+                  {presentation.contact_info && (
+                    <div>
+                      <span className="text-zinc-500">Direct Inquiries:</span>{" "}
+                      <strong className="text-zinc-200 font-semibold">{presentation.contact_info}</strong>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </main>
 
-      {/* 4. Industry Standard Floating Control Dock (HUD - Heads Up Display) */}
-      <footer
-        className={`absolute bottom-5 inset-x-0 flex justify-center z-20 pointer-events-none transition-all duration-300 ${
-          showControls ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
-        }`}
-      >
-        <div className="pointer-events-auto flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 sm:px-4 sm:py-2 bg-zinc-900/90 hover:bg-zinc-900 text-white border border-zinc-700/60 rounded-full shadow-2xl backdrop-blur-xl transition-all">
-          {/* Previous Slide */}
+      {/* 3. Professional Floating Navigation Bar (First, Prev, Counter, Next, Last) */}
+      <footer className="absolute bottom-0 inset-x-0 h-16 z-30 group flex items-center justify-center">
+        <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center gap-1 px-3 py-1.5 rounded-full bg-black/85 backdrop-blur-md shadow-2xl border-0 outline-none ring-0 select-none">
+          {/* Go to First Slide (|◀) */}
+          <button
+            type="button"
+            onClick={() => goToSlide(0)}
+            disabled={currentIndex === 0}
+            className={`h-8 w-8 rounded-full border-0 outline-none ring-0 flex items-center justify-center transition-colors ${
+              currentIndex === 0
+                ? "text-zinc-600 cursor-not-allowed"
+                : "text-zinc-300 hover:text-white hover:bg-white/10 active:bg-white/20"
+            }`}
+            title="First Slide (Home)"
+          >
+            <ChevronsLeft className="h-4 w-4" />
+          </button>
+
+          {/* Previous Slide (◀) */}
           <button
             type="button"
             onClick={goToPrev}
-            className="h-8 w-8 rounded-full flex items-center justify-center text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors"
-            title="Previous (←)"
+            disabled={currentIndex === 0}
+            className={`h-8 w-8 rounded-full border-0 outline-none ring-0 flex items-center justify-center transition-colors ${
+              currentIndex === 0
+                ? "text-zinc-600 cursor-not-allowed"
+                : "text-zinc-300 hover:text-white hover:bg-white/10 active:bg-white/20"
+            }`}
+            title="Previous (← / PageUp)"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
 
-          {/* Current Slide / Total */}
-          <div className="flex items-center gap-1 px-2.5 py-0.5 text-xs font-mono font-medium text-zinc-300 select-none">
-            <span className="font-bold text-white">{currentIndex + 1}</span>
-            <span className="text-zinc-600">/</span>
-            <span>{items.length}</span>
-          </div>
+          {/* Slide Indicator */}
+          <span className="px-2 text-xs font-mono text-zinc-300 min-w-[70px] text-center select-none">
+            {currentIndex === 0
+              ? `1 / ${totalSlides}`
+              : currentIndex === totalSlides - 1
+              ? `${totalSlides} / ${totalSlides}`
+              : `${currentIndex + 1} / ${totalSlides}`}
+          </span>
 
-          {/* Next Slide */}
+          {/* Next Slide (▶) */}
           <button
             type="button"
             onClick={goToNext}
-            className="h-8 w-8 rounded-full flex items-center justify-center text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors"
-            title="Next (→ / Space)"
+            disabled={currentIndex === totalSlides - 1}
+            className={`h-8 w-8 rounded-full border-0 outline-none ring-0 flex items-center justify-center transition-colors ${
+              currentIndex === totalSlides - 1
+                ? "text-zinc-600 cursor-not-allowed"
+                : "text-zinc-300 hover:text-white hover:bg-white/10 active:bg-white/20"
+            }`}
+            title="Next (→ / Space / PageDown)"
           >
             <ChevronRight className="h-4 w-4" />
           </button>
 
-          <div className="h-4 w-px bg-zinc-700/80 mx-0.5" />
+          {/* Go to Last Slide (▶|) */}
+          <button
+            type="button"
+            onClick={() => goToSlide(totalSlides - 1)}
+            disabled={currentIndex === totalSlides - 1}
+            className={`h-8 w-8 rounded-full border-0 outline-none ring-0 flex items-center justify-center transition-colors ${
+              currentIndex === totalSlides - 1
+                ? "text-zinc-600 cursor-not-allowed"
+                : "text-zinc-300 hover:text-white hover:bg-white/10 active:bg-white/20"
+            }`}
+            title="Last Slide (End)"
+          >
+            <ChevronsRight className="h-4 w-4" />
+          </button>
 
-          {/* Auto Play / Pause */}
+          <div className="w-px h-3.5 bg-zinc-700/60 mx-1" />
+
+          {/* Autoplay Play/Pause */}
           <button
             type="button"
             onClick={() => setIsPlaying(!isPlaying)}
-            className={`h-8 px-2.5 rounded-full flex items-center gap-1.5 text-xs transition-colors ${
+            className={`h-8 w-8 rounded-full border-0 outline-none ring-0 flex items-center justify-center transition-colors ${
               isPlaying
-                ? "bg-indigo-600 text-white font-semibold shadow-xs"
-                : "text-zinc-300 hover:text-white hover:bg-zinc-800"
+                ? "text-white bg-white/20"
+                : "text-zinc-300 hover:text-white hover:bg-white/10"
             }`}
-            title="Toggle Auto Play"
+            title={isPlaying ? "Pause (P)" : "Autoplay (P)"}
           >
-            {isPlaying ? (
-              <>
-                <Pause className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Pause</span>
-              </>
-            ) : (
-              <>
-                <Play className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Play</span>
-              </>
-            )}
+            {isPlaying ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5 fill-current" />}
           </button>
 
-          {/* Slide Overview Grid Toggle */}
+          {/* Slide Sorter Grid */}
           <button
             type="button"
             onClick={() => setIsGridOpen(true)}
-            className="h-8 w-8 rounded-full flex items-center justify-center text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors"
-            title="Slide Grid (G)"
+            className="h-8 w-8 rounded-full text-zinc-300 hover:text-white hover:bg-white/10 border-0 outline-none ring-0 flex items-center justify-center transition-colors"
+            title="Slide Overview (G)"
           >
             <LayoutGrid className="h-3.5 w-3.5" />
           </button>
@@ -501,67 +596,72 @@ export const SlideShowPlayer: React.FC<SlideShowPlayerProps> = ({
           <button
             type="button"
             onClick={toggleFullscreen}
-            className="h-8 w-8 rounded-full flex items-center justify-center text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors"
-            title="Toggle Fullscreen (F)"
+            className="h-8 w-8 rounded-full text-zinc-300 hover:text-white hover:bg-white/10 border-0 outline-none ring-0 flex items-center justify-center transition-colors"
+            title={isFullscreen ? "Exit Fullscreen (F)" : "Enter Fullscreen (F)"}
           >
-            {isFullscreen ? (
-              <Minimize2 className="h-3.5 w-3.5" />
-            ) : (
-              <Maximize2 className="h-3.5 w-3.5" />
-            )}
-          </button>
-
-          {/* Exit Presentation */}
-          <button
-            type="button"
-            onClick={handleClose}
-            className="h-8 w-8 rounded-full flex items-center justify-center text-zinc-300 hover:text-rose-400 hover:bg-rose-950/40 transition-colors"
-            title="Exit Presentation (Esc)"
-          >
-            <X className="h-3.5 w-3.5" />
+            {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
           </button>
         </div>
       </footer>
 
-      {/* 5. Slide Overview Grid Modal Overlay (Industry standard jump navigator) */}
+      {/* 4. Slide Sorter Modal */}
       {isGridOpen && (
         <div
           onClick={() => setIsGridOpen(false)}
-          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex flex-col p-6 sm:p-10 animate-in fade-in duration-200"
+          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col p-6 animate-in fade-in duration-150"
         >
-          <div className="flex items-center justify-between pb-6 max-w-6xl mx-auto w-full">
+          <div className="flex items-center justify-between pb-4 max-w-6xl mx-auto w-full border-b border-zinc-800">
             <div>
-              <h3 className="text-lg font-bold text-white">Slide Overview</h3>
-              <p className="text-xs text-zinc-400">
-                Click any swatch to jump directly to that slide ({items.length} swatches)
-              </p>
+              <h2 className="text-sm font-semibold text-white">Slide Overview</h2>
+              <p className="text-xs text-zinc-400">Select any slide to jump</p>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
+            <button
+              type="button"
               onClick={() => setIsGridOpen(false)}
-              className="rounded-xl bg-zinc-900 border-zinc-700 text-zinc-200 hover:text-white text-xs gap-1.5"
+              className="h-8 px-3 rounded-md bg-zinc-800 text-zinc-200 hover:text-white text-xs border-0 outline-none ring-0 flex items-center gap-1.5"
             >
-              <X className="h-4 w-4" />
-              Close Overview
-            </Button>
+              <X className="h-3.5 w-3.5" />
+              <span>Close</span>
+            </button>
           </div>
 
           <div
             onClick={(e) => e.stopPropagation()}
-            className="flex-1 overflow-y-auto max-w-6xl mx-auto w-full grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 p-2"
+            className="flex-1 overflow-y-auto max-w-6xl mx-auto w-full grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 p-2 mt-4"
           >
+            {/* Slide 1 Thumbnail: Welcome Cover */}
+            <button
+              type="button"
+              onClick={() => goToSlide(0)}
+              className={`group flex flex-col rounded-xl overflow-hidden border p-3 bg-zinc-900 text-left transition-all ${
+                currentIndex === 0
+                  ? "border-white bg-zinc-800"
+                  : "border-zinc-800 hover:border-zinc-700"
+              }`}
+            >
+              <div className="aspect-[4/3] rounded-lg bg-zinc-800/80 p-2.5 flex flex-col justify-between">
+                <span className="text-[10px] font-mono text-zinc-400 uppercase">Cover</span>
+                <p className="text-xs font-semibold text-white line-clamp-2">{presentation.title}</p>
+                <span className="text-[10px] text-zinc-400">{presentation.buyer_name || "Welcome"}</span>
+              </div>
+              <div className="p-1.5">
+                <p className="text-xs font-medium text-zinc-300">Slide 1 • Cover</p>
+              </div>
+            </button>
+
+            {/* Swatch Slides Thumbnails */}
             {items.map((item, idx) => {
-              const isSelected = idx === currentIndex;
+              const slideIdx = idx + 1;
+              const isSelected = slideIdx === currentIndex;
               return (
                 <button
                   key={item.id}
                   type="button"
-                  onClick={() => goToSlide(idx)}
-                  className={`group relative flex flex-col rounded-2xl overflow-hidden border bg-zinc-900 text-left transition-all ${
+                  onClick={() => goToSlide(slideIdx)}
+                  className={`group flex flex-col rounded-xl overflow-hidden border bg-zinc-900 text-left transition-all ${
                     isSelected
-                      ? "ring-2 ring-indigo-500 border-indigo-500 scale-102 shadow-xl shadow-indigo-500/20"
-                      : "border-zinc-800 hover:border-zinc-600 hover:scale-102"
+                      ? "border-white bg-zinc-800"
+                      : "border-zinc-800 hover:border-zinc-700"
                   }`}
                 >
                   <div className="relative aspect-[4/3] bg-zinc-950 flex items-center justify-center overflow-hidden">
@@ -570,18 +670,18 @@ export const SlideShowPlayer: React.FC<SlideShowPlayerProps> = ({
                       <img
                         src={item.primary_image_url}
                         alt={item.fabric_name}
-                        className="h-full w-full object-cover group-hover:scale-105 transition-transform"
+                        className="h-full w-full object-cover group-hover:scale-102 transition-transform"
                       />
                     ) : (
                       <div className="text-[10px] text-zinc-600">No Image</div>
                     )}
-                    <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-black/75 backdrop-blur-sm text-[10px] font-mono font-bold text-white">
-                      #{idx + 1}
+                    <span className="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-black/75 text-[10px] font-mono text-white">
+                      #{slideIdx + 1}
                     </span>
                   </div>
 
-                  <div className="p-2.5 space-y-0.5">
-                    <p className="text-xs font-bold text-zinc-200 truncate">
+                  <div className="p-2 space-y-0.5">
+                    <p className="text-xs font-semibold text-zinc-200 truncate">
                       {item.fabric_name || item.article_no}
                     </p>
                     <p className="text-[11px] text-zinc-400 truncate">
@@ -591,35 +691,50 @@ export const SlideShowPlayer: React.FC<SlideShowPlayerProps> = ({
                 </button>
               );
             })}
+
+            {/* Slide N+2 Thumbnail: Thank You Outro */}
+            <button
+              type="button"
+              onClick={() => goToSlide(totalSlides - 1)}
+              className={`group flex flex-col rounded-xl overflow-hidden border p-3 bg-zinc-900 text-left transition-all ${
+                currentIndex === totalSlides - 1
+                  ? "border-white bg-zinc-800"
+                  : "border-zinc-800 hover:border-zinc-700"
+              }`}
+            >
+              <div className="aspect-[4/3] rounded-lg bg-zinc-800/80 p-2.5 flex flex-col justify-between">
+                <span className="text-[10px] font-mono text-zinc-400 uppercase">Closing</span>
+                <p className="text-xs font-semibold text-white">Thank You</p>
+                <span className="text-[10px] text-zinc-400">Direct Inquiries</span>
+              </div>
+              <div className="p-1.5">
+                <p className="text-xs font-medium text-zinc-300">Slide {totalSlides} • Closing</p>
+              </div>
+            </button>
           </div>
         </div>
       )}
 
-      {/* 6. Click-To-Zoom Lightbox Modal */}
+      {/* 5. Click-To-Zoom Lightbox Modal */}
       {isZoomed && currentFabric?.primary_image_url && (
         <div
           onClick={() => setIsZoomed(false)}
-          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-lg flex items-center justify-center p-4 animate-in fade-in duration-200 cursor-zoom-out"
+          className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex items-center justify-center p-4 cursor-zoom-out animate-in fade-in duration-150"
         >
-          <div className="relative max-w-5xl max-h-[90vh] flex flex-col items-center">
+          <div className="relative max-w-5xl max-h-[90vh] w-full h-full flex items-center justify-center">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={currentFabric.primary_image_url}
               alt={currentFabric.fabric_name}
-              className="max-h-[85vh] max-w-[90vw] object-contain rounded-2xl shadow-2xl ring-1 ring-white/10"
+              className="max-w-full max-h-full object-contain rounded-lg"
             />
-            <div className="mt-3 flex items-center gap-3">
-              <span className="text-xs font-semibold text-zinc-300">
-                {currentFabric.fabric_name} ({currentFabric.article_no})
-              </span>
-              <button
-                type="button"
-                onClick={() => setIsZoomed(false)}
-                className="px-3 py-1 rounded-full bg-white/20 hover:bg-white/30 text-xs font-medium text-white transition-colors"
-              >
-                Close Zoom (Esc)
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => setIsZoomed(false)}
+              className="absolute top-4 right-4 h-9 w-9 rounded-full bg-black/80 text-white hover:bg-black border-0 outline-none ring-0 flex items-center justify-center"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
         </div>
       )}

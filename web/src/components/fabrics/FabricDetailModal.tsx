@@ -349,7 +349,13 @@ export const FabricDetailModal: React.FC<FabricDetailModalProps> = ({
                       Unit Price
                     </span>
                     <div className="text-lg font-black text-emerald-700 dark:text-emerald-300">
-                      {formatPrice(fabric.price_amount, fabric.price_unit, fabric.price_notes)}
+                      {formatPrice(
+                        fabric.price_amount,
+                        fabric.price_currency,
+                        fabric.price_unit,
+                        fabric.price_notes,
+                        fabric.price_status
+                      )}
                     </div>
                   </div>
 

@@ -284,6 +284,10 @@ export const api = {
     description?: string;
     buyer_name?: string;
     season?: string;
+    welcome_notes?: string;
+    closing_notes?: string;
+    presenter_name?: string;
+    contact_info?: string;
     fabric_ids?: string[];
   }): Promise<Presentation> {
     return request<Presentation>("/presentations", {
@@ -299,6 +303,10 @@ export const api = {
       description?: string;
       buyer_name?: string;
       season?: string;
+      welcome_notes?: string;
+      closing_notes?: string;
+      presenter_name?: string;
+      contact_info?: string;
     }
   ): Promise<Presentation> {
     return request<Presentation>(`/presentations/${id}`, {

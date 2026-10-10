@@ -150,7 +150,13 @@ export const FabricMobileCard: React.FC<FabricMobileCardProps> = ({
         </div>
 
         <div className="font-semibold text-emerald-600 dark:text-emerald-400">
-          {formatPrice(fabric.price_amount, fabric.price_unit, fabric.price_notes)}
+          {formatPrice(
+            fabric.price_amount,
+            fabric.price_currency,
+            fabric.price_unit,
+            fabric.price_notes,
+            fabric.price_status
+          )}
         </div>
       </div>
 

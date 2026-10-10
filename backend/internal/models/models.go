@@ -197,15 +197,19 @@ type DashboardStats struct {
 
 // Presentation Models
 type Presentation struct {
-	ID          uuid.UUID  `json:"id" db:"id"`
-	Title       string     `json:"title" db:"title"`
-	Description *string    `json:"description,omitempty" db:"description"`
-	BuyerName   *string    `json:"buyer_name,omitempty" db:"buyer_name"`
-	Season      *string    `json:"season,omitempty" db:"season"`
-	CreatedBy   *uuid.UUID `json:"created_by,omitempty" db:"created_by"`
-	CreatedAt   time.Time  `json:"created_at" db:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at" db:"updated_at"`
-	ItemCount   int        `json:"item_count" db:"item_count"`
+	ID            uuid.UUID  `json:"id" db:"id"`
+	Title         string     `json:"title" db:"title"`
+	Description   *string    `json:"description,omitempty" db:"description"`
+	BuyerName     *string    `json:"buyer_name,omitempty" db:"buyer_name"`
+	Season        *string    `json:"season,omitempty" db:"season"`
+	WelcomeNotes  *string    `json:"welcome_notes,omitempty" db:"welcome_notes"`
+	ClosingNotes  *string    `json:"closing_notes,omitempty" db:"closing_notes"`
+	PresenterName *string    `json:"presenter_name,omitempty" db:"presenter_name"`
+	ContactInfo   *string    `json:"contact_info,omitempty" db:"contact_info"`
+	CreatedBy     *uuid.UUID `json:"created_by,omitempty" db:"created_by"`
+	CreatedAt     time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt     time.Time  `json:"updated_at" db:"updated_at"`
+	ItemCount     int        `json:"item_count" db:"item_count"`
 }
 
 type PresentationItem struct {
@@ -223,18 +227,26 @@ type PresentationDetail struct {
 }
 
 type CreatePresentationRequest struct {
-	Title       string   `json:"title" binding:"required"`
-	Description *string  `json:"description"`
-	BuyerName   *string  `json:"buyer_name"`
-	Season      *string  `json:"season"`
-	FabricIDs   []string `json:"fabric_ids"`
+	Title         string   `json:"title" binding:"required"`
+	Description   *string  `json:"description"`
+	BuyerName     *string  `json:"buyer_name"`
+	Season        *string  `json:"season"`
+	WelcomeNotes  *string  `json:"welcome_notes"`
+	ClosingNotes  *string  `json:"closing_notes"`
+	PresenterName *string  `json:"presenter_name"`
+	ContactInfo   *string  `json:"contact_info"`
+	FabricIDs     []string `json:"fabric_ids"`
 }
 
 type UpdatePresentationRequest struct {
-	Title       string  `json:"title" binding:"required"`
-	Description *string `json:"description"`
-	BuyerName   *string `json:"buyer_name"`
-	Season      *string `json:"season"`
+	Title         string  `json:"title" binding:"required"`
+	Description   *string `json:"description"`
+	BuyerName     *string `json:"buyer_name"`
+	Season        *string `json:"season"`
+	WelcomeNotes  *string `json:"welcome_notes"`
+	ClosingNotes  *string `json:"closing_notes"`
+	PresenterName *string `json:"presenter_name"`
+	ContactInfo   *string `json:"contact_info"`
 }
 
 type BulkAssignPresentationItemsRequest struct {

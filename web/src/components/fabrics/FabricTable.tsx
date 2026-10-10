@@ -268,11 +268,39 @@ export const FabricTable: React.FC<FabricTableProps> = ({
         ),
         cell: ({ row }) => {
           const f = row.original;
-          const formatted = formatPrice(f.price_amount, f.price_unit, f.price_notes);
+          const hasAmount = f.price_amount != null && !isNaN(f.price_amount) && f.price_amount > 0;
+          const cleanNotes =
+            f.price_notes && !f.price_notes.toLowerCase().includes("explore")
+              ? f.price_notes.trim()
+              : null;
+
+          if (hasAmount && cleanNotes) {
+            return (
+              <div className="flex flex-col text-xs leading-tight">
+                <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                  {formatPrice(f.price_amount, f.price_currency, f.price_unit)}
+                </span>
+                <span
+                  className="text-[11px] text-zinc-500 dark:text-zinc-400 font-normal truncate max-w-[170px]"
+                  title={cleanNotes}
+                >
+                  {cleanNotes}
+                </span>
+              </div>
+            );
+          }
+
+          const formatted = formatPrice(
+            f.price_amount,
+            f.price_currency,
+            f.price_unit,
+            f.price_notes,
+            f.price_status
+          );
           return (
             <span
               className={`text-xs font-semibold ${
-                f.price_amount ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"
+                hasAmount ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"
               }`}
             >
               {formatted}

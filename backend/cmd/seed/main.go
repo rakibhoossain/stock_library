@@ -142,6 +142,12 @@ func seedFabrics(catRepo *repository.CategoryRepository, supRepo *repository.Sup
 		rawPrice := strings.TrimSpace(row[9])
 		moq := strings.TrimSpace(row[10])
 		mcq := strings.TrimSpace(row[11])
+		if strings.Contains(moq, "$") || strings.EqualFold(moq, "explore files") {
+			moq = ""
+		}
+		if strings.Contains(mcq, "$") || strings.EqualFold(mcq, "explore files") {
+			mcq = ""
+		}
 
 		if reference == "" && rawComposition == "" && rawSupplier == "" {
 			continue
@@ -340,10 +346,9 @@ func parseGSM(raw string) (int, *int) {
 
 func parsePrice(raw string) (*float64, string, string, string, *string) {
 	raw = strings.TrimSpace(raw)
-	if raw == "" {
+	if raw == "" || strings.EqualFold(raw, "explore files") {
 		status := "PENDING"
-		notes := "Yet to get"
-		return nil, "USD", "KG", status, &notes
+		return nil, "USD", "KG", status, nil
 	}
 
 	// Examples: "$7.85/KG", "$2.05/yds", "$1.75/Yds", "4.56/kg", "$3.11/M"
