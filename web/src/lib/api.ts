@@ -85,15 +85,7 @@ export const api = {
   },
 
   async ensureAuth(): Promise<User | null> {
-    const user = await this.getCurrentUser();
-    if (user) return user;
-    // Default demo fallback if needed during dev
-    try {
-      const loginData = await this.login("admin@stocklibrary.com", "password123");
-      return loginData.user;
-    } catch {
-      return null;
-    }
+    return this.getCurrentUser();
   },
 
   async getFabrics(filter: Partial<FabricFilter>): Promise<PaginatedFabrics> {

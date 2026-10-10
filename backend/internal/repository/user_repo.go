@@ -55,3 +55,21 @@ func (r *UserRepository) Create(user *models.User) error {
 	return r.db.QueryRow(query, user.ID, user.Email, user.PasswordHash, user.FullName, user.Role, user.AvatarURL).
 		Scan(&user.ID, &user.CreatedAt, &user.UpdatedAt)
 }
+
+func (r *UserRepository) Upsert(user *models.User) error {
+	query := `
+		INSERT INTO users (id, email, password_hash, full_name, role, avatar_url, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+		ON CONFLICT (email) DO UPDATE SET
+			password_hash = EXCLUDED.password_hash,
+			full_name = EXCLUDED.full_name,
+			role = EXCLUDED.role,
+			updated_at = NOW()
+		RETURNING id, created_at, updated_at
+	`
+	if user.ID == uuid.Nil {
+		user.ID = uuid.New()
+	}
+	return r.db.QueryRow(query, user.ID, user.Email, user.PasswordHash, user.FullName, user.Role, user.AvatarURL).
+		Scan(&user.ID, &user.CreatedAt, &user.UpdatedAt)
+}

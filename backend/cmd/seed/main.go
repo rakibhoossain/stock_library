@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/csv"
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -20,6 +21,9 @@ import (
 )
 
 func main() {
+	cleanFlag := flag.Bool("clean", false, "Clean and truncate tables before seeding")
+	flag.Parse()
+
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
@@ -30,6 +34,15 @@ func main() {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 	defer db.Close()
+
+	if *cleanFlag {
+		log.Println("Cleaning old data (TRUNCATE CASCADE)...")
+		truncateQuery := `TRUNCATE TABLE presentation_items, presentations, fabric_swatch_embeddings, fabrics, categories, suppliers, users CASCADE;`
+		if _, err := db.Exec(truncateQuery); err != nil {
+			log.Fatalf("Failed to truncate tables: %v", err)
+		}
+		log.Println("Old data successfully wiped!")
+	}
 
 	userRepo := repository.NewUserRepository(db)
 	catRepo := repository.NewCategoryRepository(db)
@@ -67,12 +80,6 @@ func seedUsers(repo *repository.UserRepository) {
 	}
 
 	for _, u := range usersToSeed {
-		existing, err := repo.FindByEmail(u.Email)
-		if err == nil && existing != nil {
-			log.Printf("User %s already exists, skipping.", u.Email)
-			continue
-		}
-
 		hash, err := auth.HashPassword(u.Password)
 		if err != nil {
 			log.Fatalf("Failed to hash password for %s: %v", u.Email, err)
@@ -86,25 +93,42 @@ func seedUsers(repo *repository.UserRepository) {
 			Role:         u.Role,
 		}
 
-		if err := repo.Create(user); err != nil {
-			log.Printf("Error creating user %s: %v", u.Email, err)
+		if err := repo.Upsert(user); err != nil {
+			log.Printf("Error upserting user %s: %v", u.Email, err)
 		} else {
-			log.Printf("Created user: %s (password: %s, role: %s)", u.Email, u.Password, u.Role)
+			log.Printf("Created/Updated user: %s (password: %s, role: %s)", u.Email, u.Password, u.Role)
 		}
 	}
 }
 
 func seedFabrics(catRepo *repository.CategoryRepository, supRepo *repository.SupplierRepository, fabricRepo *repository.FabricRepository) {
-	csvPath := "data/fabrics_seed.csv"
-	file, err := os.Open(csvPath)
-	if err != nil {
-		log.Fatalf("Could not open %s: %v", csvPath, err)
+	csvCandidates := []string{
+		"data/fabrics_seed.csv",
+		"backend/data/fabrics_seed.csv",
+		"/app/data/fabrics_seed.csv",
+		"../data/fabrics_seed.csv",
+	}
+
+	var file *os.File
+	var foundPath string
+	for _, p := range csvCandidates {
+		f, err := os.Open(p)
+		if err == nil {
+			file = f
+			foundPath = p
+			break
+		}
+	}
+
+	if file == nil {
+		log.Fatalf("Could not open fabrics_seed.csv in any searched locations: %v", csvCandidates)
 	}
 	defer file.Close()
+	log.Printf("Reading seed data from %s", foundPath)
 
 	reader := csv.NewReader(file)
 	// Read header
-	_, err = reader.Read()
+	_, err := reader.Read()
 	if err != nil {
 		log.Fatalf("Error reading CSV header: %v", err)
 	}

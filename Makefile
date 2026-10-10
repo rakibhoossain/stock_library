@@ -29,6 +29,26 @@ logs:
 status:
 	docker compose ps
 
-# Seed database from CSV
+# Seed database (upserts users and syncs fabrics)
 seed:
-	cd backend && go run cmd/seed/main.go
+	@if docker compose ps --services --filter "status=running" 2>/dev/null | grep -q "backend"; then \
+		echo "Seeding database inside backend container..."; \
+		docker compose exec backend /app/seed; \
+	else \
+		echo "Seeding database via local Go..."; \
+		cd backend && go run cmd/seed/main.go; \
+	fi
+
+# Wipe old data and seed freshly
+seed-clean:
+	@if docker compose ps --services --filter "status=running" 2>/dev/null | grep -q "backend"; then \
+		echo "Cleaning and seeding database inside backend container..."; \
+		docker compose exec backend /app/seed -clean; \
+	else \
+		echo "Cleaning and seeding database via local Go..."; \
+		cd backend && go run cmd/seed/main.go -clean; \
+	fi
+
+# Reset PostgreSQL password to match default 'postgres'
+db-reset-pass:
+	docker compose exec postgres psql -U postgres -d stock_library -c "ALTER USER postgres WITH PASSWORD 'postgres';"

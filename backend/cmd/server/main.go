@@ -82,31 +82,30 @@ func main() {
 			authGroup.GET("/me", handler.AuthMiddleware(cfg.JWTSecret), authHandler.Me)
 		}
 
-		// Master Data
-		v1.GET("/categories", masterHandler.GetCategories)
-		v1.GET("/suppliers", masterHandler.GetSuppliers)
-		v1.GET("/stats", masterHandler.GetStats)
-
-		// Presentations (Public Read)
-		v1.GET("/presentations", presHandler.List)
+		// Public Presentation Viewer (Only specific deck view is public for buyer links)
 		v1.GET("/presentations/:id", presHandler.Get)
 
-		// Fabrics Listing & Search (Public / Read)
-		v1.GET("/fabrics", fabricHandler.ListFabrics)
-		v1.GET("/fabrics/:id", fabricHandler.GetFabric)
-		v1.POST("/fabrics/search-by-image", fabricHandler.SearchByImage)
-		v1.POST("/fabrics/search/image", fabricHandler.SearchByImage)
-		v1.GET("/fabrics/export", fabricHandler.Export)
-
-		// Fabric Mutation, Storage & Uploads (Protected)
+		// Protected Internal Endpoints (Requires valid JWT authentication)
 		protected := v1.Group("")
 		protected.Use(handler.AuthMiddleware(cfg.JWTSecret))
 		{
+			// Master Data
+			protected.GET("/categories", masterHandler.GetCategories)
+			protected.GET("/suppliers", masterHandler.GetSuppliers)
+			protected.GET("/stats", masterHandler.GetStats)
+
+			// Fabrics Listing & Search
+			protected.GET("/fabrics", fabricHandler.ListFabrics)
+			protected.GET("/fabrics/:id", fabricHandler.GetFabric)
+			protected.POST("/fabrics/search-by-image", fabricHandler.SearchByImage)
+			protected.POST("/fabrics/search/image", fabricHandler.SearchByImage)
+			protected.GET("/fabrics/export", fabricHandler.Export)
 			protected.POST("/fabrics", fabricHandler.CreateFabric)
 			protected.PUT("/fabrics/:id", fabricHandler.UpdateFabric)
 			protected.DELETE("/fabrics/:id", fabricHandler.DeleteFabric)
 
-			// Presentations Management (Protected)
+			// Presentations Management
+			protected.GET("/presentations", presHandler.List)
 			protected.POST("/presentations", presHandler.Create)
 			protected.PUT("/presentations/:id", presHandler.Update)
 			protected.DELETE("/presentations/:id", presHandler.Delete)

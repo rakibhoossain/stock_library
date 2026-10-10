@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Lock, Mail, Loader2, Sparkles, AlertCircle, ShieldCheck, Shirt } from "lucide-react";
+import { Lock, Mail, Loader2, Sparkles, AlertCircle, ShieldCheck } from "lucide-react";
 import Image from "next/image";
 
 export default function LoginPage() {
@@ -14,6 +14,17 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const token = api.getToken();
+    if (token) {
+      void api.getCurrentUser().then((user) => {
+        if (user) {
+          router.replace("/");
+        }
+      });
+    }
+  }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -63,6 +63,7 @@ export function FabricDashboard() {
 
   // User session
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
 
   // Master data
   const [categories, setCategories] = useState<Category[]>([]);
@@ -166,7 +167,11 @@ export function FabricDashboard() {
   // Reusable Master Data loader for manual refreshes
   const loadMasterData = useCallback(async () => {
     try {
-      const user = await api.ensureAuth();
+      const user = await api.getCurrentUser();
+      if (!user) {
+        router.replace("/login");
+        return;
+      }
       setCurrentUser(user);
       const [cats, sups, st, decks] = await Promise.all([
         api.getCategories(),
@@ -181,7 +186,7 @@ export function FabricDashboard() {
     } catch (err) {
       console.error("Failed to load initial data:", err);
     }
-  }, []);
+  }, [router]);
 
   const loadPresentations = useCallback(async () => {
     try {
@@ -204,14 +209,31 @@ export function FabricDashboard() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // Fetch Master Data on mount
+  // Verify authentication on mount and fetch master data
   useEffect(() => {
     let cancelled = false;
     const initMaster = async () => {
+      const token = api.getToken();
+      if (!token) {
+        if (!cancelled) {
+          setIsAuthChecking(false);
+          router.replace("/login");
+        }
+        return;
+      }
+
       try {
-        const user = await api.ensureAuth();
+        const user = await api.getCurrentUser();
         if (cancelled) return;
+        if (!user) {
+          setIsAuthChecking(false);
+          router.replace("/login");
+          return;
+        }
+
         setCurrentUser(user);
+        setIsAuthChecking(false);
+
         const [cats, sups, st, decks] = await Promise.all([
           api.getCategories(),
           api.getSuppliers(),
@@ -224,14 +246,18 @@ export function FabricDashboard() {
         setStats(st);
         setPresentations(Array.isArray(decks) ? decks : []);
       } catch (err) {
-        if (!cancelled) console.error("Failed to load initial master data:", err);
+        if (!cancelled) {
+          console.error("Authentication or master data load failed:", err);
+          setIsAuthChecking(false);
+          router.replace("/login");
+        }
       }
     };
     void initMaster();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [router]);
 
   // Reusable manual loader for fabrics
   const loadFabrics = useCallback(async () => {
@@ -248,8 +274,9 @@ export function FabricDashboard() {
     }
   }, [filter]);
 
-  // Synchronize fabrics on filter changes
+  // Synchronize fabrics on filter changes (only when authenticated)
   useEffect(() => {
+    if (isAuthChecking || !currentUser) return;
     let cancelled = false;
     const fetchFiltered = async () => {
       setIsLoading(true);
@@ -270,7 +297,7 @@ export function FabricDashboard() {
     return () => {
       cancelled = true;
     };
-  }, [filter]);
+  }, [filter, isAuthChecking, currentUser]);
 
   // Sync sorting with URL query parameters
   const handleSortingChange = useCallback(
@@ -389,6 +416,15 @@ export function FabricDashboard() {
     if (filter.price_status) count++;
     return count;
   }, [filter]);
+
+  if (isAuthChecking || !currentUser) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-950 text-white space-y-4">
+        <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
+        <p className="text-xs text-zinc-400">Verifying session...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-zinc-50/70 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 pb-24 md:pb-12">
