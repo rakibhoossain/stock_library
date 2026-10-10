@@ -3,7 +3,6 @@ package main
 import (
 	"log"
 	"net/http"
-	"os"
 
 	"github.com/gin-gonic/gin"
 	"stock_library/backend/internal/config"
@@ -30,9 +29,6 @@ func main() {
 	}
 	defer db.Close()
 
-	// Ensure upload directory exists for local fallback
-	_ = os.MkdirAll(cfg.UploadDir, 0755)
-
 	// Initialize S3 Storage Service
 	s3Service, err := storage.NewS3Service(cfg)
 	if err != nil {
@@ -57,7 +53,6 @@ func main() {
 	masterHandler := handler.NewMasterHandler(catRepo, supRepo, fabricService)
 	fabricHandler := handler.NewFabricHandler(fabricService, exportService)
 	presHandler := handler.NewPresentationHandler(presService)
-	uploadHandler := handler.NewUploadHandler(cfg)
 	var storageHandler *handler.StorageHandler
 	if s3Service != nil {
 		storageHandler = handler.NewStorageHandler(s3Service)
@@ -66,9 +61,6 @@ func main() {
 	// Router setup
 	r := gin.Default()
 	r.Use(handler.CORSMiddleware())
-
-	// Serve uploaded images statically (fallback)
-	r.Static("/static", cfg.UploadDir)
 
 	// Health check
 	r.GET("/health", func(c *gin.Context) {
@@ -112,7 +104,6 @@ func main() {
 			protected.POST("/fabrics", fabricHandler.CreateFabric)
 			protected.PUT("/fabrics/:id", fabricHandler.UpdateFabric)
 			protected.DELETE("/fabrics/:id", fabricHandler.DeleteFabric)
-			protected.POST("/upload", uploadHandler.UploadImage)
 
 			// Presentations Management (Protected)
 			protected.POST("/presentations", presHandler.Create)

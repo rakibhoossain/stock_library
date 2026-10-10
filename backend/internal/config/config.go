@@ -19,8 +19,6 @@ type Config struct {
 	DBSSLMode          string
 	JWTSecret          string
 	JWTExpirationHours int
-	UploadDir          string
-	StaticBaseURL      string
 
 	// AWS S3 Storage
 	AWSRegion      string
@@ -30,7 +28,7 @@ type Config struct {
 }
 
 func LoadConfig() (*Config, error) {
-	_ = godotenv.Load()
+	_ = godotenv.Load(".env", "backend/.env", "../backend/.env")
 
 	port := getEnv("PORT", "8088")
 	env := getEnv("ENV", "development")
@@ -41,16 +39,11 @@ func LoadConfig() (*Config, error) {
 	dbName := getEnv("DB_NAME", "stock_library")
 	dbSSLMode := getEnv("DB_SSLMODE", "disable")
 	jwtSecret := getEnv("JWT_SECRET", "fabric-stock-library-secret-key-2026")
-	uploadDir := getEnv("UPLOAD_DIR", "./uploads")
-	staticBaseURL := getEnv("STATIC_BASE_URL", "http://localhost:8088/static")
 
-	awsRegion := getEnv("AWS_REGION", "ap-south-1")
+	awsRegion := getEnv("AWS_REGION", "eu-central-1")
 	awsAccessKey := getEnv("AWS_S3_ACCESS_KEY", "")
 	awsKeySecret := getEnv("AWS_S3_KEY_SECRET", "")
-	if awsKeySecret == "" {
-		awsKeySecret = getEnv("secretAccessKey", "")
-	}
-	awsBucket := getEnv("AWS_S3_BUCKET", "pantoneclos3bucket")
+	awsBucket := getEnv("AWS_S3_BUCKET", "pantoneclosbucket")
 
 	jwtExpHours, err := strconv.Atoi(getEnv("JWT_EXPIRATION_HOURS", "72"))
 	if err != nil {
@@ -68,8 +61,6 @@ func LoadConfig() (*Config, error) {
 		DBSSLMode:          dbSSLMode,
 		JWTSecret:          jwtSecret,
 		JWTExpirationHours: jwtExpHours,
-		UploadDir:          uploadDir,
-		StaticBaseURL:      staticBaseURL,
 		AWSRegion:          awsRegion,
 		AWSS3AccessKey:     awsAccessKey,
 		AWSS3KeySecret:     awsKeySecret,
