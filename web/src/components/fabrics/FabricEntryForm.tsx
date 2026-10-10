@@ -476,7 +476,7 @@ export const FabricEntryForm: React.FC<FabricEntryFormProps> = ({
               ) : (
                 <div className="mt-1">
                   <SearchableSelect
-                    options={localCategories.map((c) => ({
+                    options={(localCategories || []).map((c) => ({
                       value: c.id,
                       label: `${c.name} (${c.gender || "Unisex"})`,
                       subLabel: c.gender,
@@ -565,7 +565,7 @@ export const FabricEntryForm: React.FC<FabricEntryFormProps> = ({
               ) : (
                 <div className="mt-1">
                   <SearchableSelect
-                    options={localSuppliers.map((s) => ({
+                    options={(localSuppliers || []).map((s) => ({
                       value: s.id,
                       label: s.name,
                       subLabel: [s.short_code, s.contact_person, s.phone].filter(Boolean).join(" • "),

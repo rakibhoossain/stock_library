@@ -10,6 +10,9 @@ deploy:
 build-web:
 	pnpm --prefix web build
 
+web-build:
+	pnpm --prefix web build
+
 # Start Docker services (PostgreSQL + Go API backend)
 up:
 	docker compose up -d --build

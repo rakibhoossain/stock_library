@@ -174,10 +174,10 @@ export function FabricDashboard() {
         api.getStats(),
         api.getPresentations(),
       ]);
-      setCategories(cats);
-      setSuppliers(sups);
+      setCategories(Array.isArray(cats) ? cats : []);
+      setSuppliers(Array.isArray(sups) ? sups : []);
       setStats(st);
-      setPresentations(decks);
+      setPresentations(Array.isArray(decks) ? decks : []);
     } catch (err) {
       console.error("Failed to load initial data:", err);
     }
@@ -219,10 +219,10 @@ export function FabricDashboard() {
           api.getPresentations(),
         ]);
         if (cancelled) return;
-        setCategories(cats);
-        setSuppliers(sups);
+        setCategories(Array.isArray(cats) ? cats : []);
+        setSuppliers(Array.isArray(sups) ? sups : []);
         setStats(st);
-        setPresentations(decks);
+        setPresentations(Array.isArray(decks) ? decks : []);
       } catch (err) {
         if (!cancelled) console.error("Failed to load initial master data:", err);
       }
@@ -648,7 +648,7 @@ export function FabricDashboard() {
           </div>
         ) : viewMode === "grid" ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5">
-            {fabrics.map((fabric) => (
+            {(fabrics || []).map((fabric) => (
               <FabricMobileCard
                 key={fabric.id}
                 fabric={fabric}
@@ -873,7 +873,7 @@ export function FabricDashboard() {
               <label className="font-semibold text-zinc-700 dark:text-zinc-300">Category</label>
               <div className="mt-1">
                 <SearchableSelect
-                  options={categories.map((c) => ({
+                  options={(categories || []).map((c) => ({
                     value: c.id,
                     label: c.name,
                     subLabel: c.gender,
@@ -894,7 +894,7 @@ export function FabricDashboard() {
               <label className="font-semibold text-zinc-700 dark:text-zinc-300">Supplier</label>
               <div className="mt-1">
                 <SearchableSelect
-                  options={suppliers.map((s) => ({
+                  options={(suppliers || []).map((s) => ({
                     value: s.id,
                     label: s.name,
                     subLabel: s.short_code,
@@ -911,12 +911,12 @@ export function FabricDashboard() {
               </div>
             </div>
 
-            {presentations.length > 0 && (
+            {(presentations || []).length > 0 && (
               <div>
                 <label className="font-semibold text-zinc-700 dark:text-zinc-300">Presentation Deck</label>
                 <div className="mt-1">
                   <SearchableSelect
-                    options={presentations.map((p) => ({
+                    options={(presentations || []).map((p) => ({
                       value: p.id,
                       label: p.title,
                       subLabel: p.season ? `${p.season} (${p.item_count})` : `(${p.item_count} items)`,
