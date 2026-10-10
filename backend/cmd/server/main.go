@@ -95,6 +95,7 @@ func main() {
 		v1.GET("/fabrics", fabricHandler.ListFabrics)
 		v1.GET("/fabrics/:id", fabricHandler.GetFabric)
 		v1.POST("/fabrics/search-by-image", fabricHandler.SearchByImage)
+		v1.POST("/fabrics/search/image", fabricHandler.SearchByImage)
 		v1.GET("/fabrics/export", fabricHandler.Export)
 
 		// Fabric Mutation, Storage & Uploads (Protected)

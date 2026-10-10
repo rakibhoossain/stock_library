@@ -142,7 +142,22 @@ func seedFabrics(catRepo *repository.CategoryRepository, supRepo *repository.Sup
 		rawPrice := strings.TrimSpace(row[9])
 		moq := strings.TrimSpace(row[10])
 		mcq := strings.TrimSpace(row[11])
-		if strings.Contains(moq, "$") || strings.EqualFold(moq, "explore files") {
+
+		var notePlaceholder *string
+		if strings.EqualFold(rawPrice, "explore files") {
+			note := "Explore Files"
+			notePlaceholder = &note
+		}
+
+		// Check if price was placed in MOQ column (e.g. "$6.80/kg")
+		if strings.Contains(moq, "$") {
+			if rawPrice == "" || strings.EqualFold(rawPrice, "explore files") {
+				rawPrice = moq
+				moq = ""
+			} else {
+				moq = ""
+			}
+		} else if strings.EqualFold(moq, "explore files") {
 			moq = ""
 		}
 		if strings.Contains(mcq, "$") || strings.EqualFold(mcq, "explore files") {
@@ -180,6 +195,9 @@ func seedFabrics(catRepo *repository.CategoryRepository, supRepo *repository.Sup
 
 		// Parse Price
 		priceAmount, priceCurrency, priceUnit, priceStatus, priceNotes := parsePrice(rawPrice)
+		if priceNotes == nil && notePlaceholder != nil {
+			priceNotes = notePlaceholder
+		}
 
 		// Parse Fibers
 		fibers := parseCompositionFibers(rawComposition)
@@ -224,7 +242,10 @@ func seedFabrics(catRepo *repository.CategoryRepository, supRepo *repository.Sup
 		}
 
 		// Create vector embedding
-		emb := service.GenerateDeterministicEmbedding(fabric.ArticleNo + fabric.FabricName + fabric.CompositionRaw)
+		emb, embErr := service.FetchAndExtractVisualEmbedding(imgURL)
+		if embErr != nil {
+			emb = service.GenerateDeterministicEmbedding(imgURL)
+		}
 		_ = fabricRepo.SaveEmbedding(fabric.ID, imgURL, emb)
 
 		count++

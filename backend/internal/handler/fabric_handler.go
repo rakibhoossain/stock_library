@@ -130,35 +130,38 @@ func (h *FabricHandler) SearchByImage(c *gin.Context) {
 		}
 	}
 
-	var seed string
-	// Check if a file was uploaded
-	file, err := c.FormFile("image")
-	if err == nil {
-		// Read a part of file to seed the embedding
+	var embedding []float32
+	var err error
+
+	// 1. Check if a multipart file was uploaded
+	file, fileErr := c.FormFile("image")
+	if fileErr == nil {
 		f, openErr := file.Open()
 		if openErr == nil {
 			defer f.Close()
-			buf := make([]byte, 1024)
-			n, _ := f.Read(buf)
-			seed = string(buf[:n]) + file.Filename
+			embedding, _ = service.ExtractVisualEmbedding(f)
 		}
 	}
 
-	if seed == "" {
+	// 2. Check if an image_url was sent in JSON payload
+	if len(embedding) == 0 {
 		type urlPayload struct {
 			ImageURL string `json:"image_url"`
 		}
 		var p urlPayload
-		if err := c.ShouldBindJSON(&p); err == nil && p.ImageURL != "" {
-			seed = p.ImageURL
+		if bindErr := c.ShouldBindJSON(&p); bindErr == nil && p.ImageURL != "" {
+			embedding, _ = service.FetchAndExtractVisualEmbedding(p.ImageURL)
+			if len(embedding) == 0 {
+				embedding = service.GenerateDeterministicEmbedding(p.ImageURL)
+			}
 		}
 	}
 
-	if seed == "" {
-		seed = "sample-swatch-seed-" + strconv.FormatInt(time.Now().UnixNano(), 10)
+	// 3. Fallback if still empty
+	if len(embedding) == 0 {
+		embedding = service.GenerateDeterministicEmbedding("sample-swatch-" + strconv.FormatInt(time.Now().UnixNano(), 10))
 	}
 
-	embedding := service.GenerateDeterministicEmbedding(seed)
 	results, err := h.fabricService.SearchByVector(embedding, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to execute visual similarity search", "details": err.Error()})

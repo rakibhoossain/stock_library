@@ -12,13 +12,50 @@ import (
 	"stock_library/backend/internal/repository"
 )
 
+type EmbeddingJob struct {
+	FabricID uuid.UUID
+	ImageURL string
+}
+
 type FabricService struct {
-	fabricRepo *repository.FabricRepository
+	fabricRepo     *repository.FabricRepository
+	embeddingQueue chan EmbeddingJob
 }
 
 func NewFabricService(fabricRepo *repository.FabricRepository) *FabricService {
-	return &FabricService{
-		fabricRepo: fabricRepo,
+	svc := &FabricService{
+		fabricRepo:     fabricRepo,
+		embeddingQueue: make(chan EmbeddingJob, 500),
+	}
+	// Start async background worker to process image embeddings
+	go svc.startEmbeddingWorker()
+	return svc
+}
+
+func (s *FabricService) startEmbeddingWorker() {
+	for job := range s.embeddingQueue {
+		emb, err := FetchAndExtractVisualEmbedding(job.ImageURL)
+		if err != nil {
+			emb = GenerateDeterministicEmbedding(job.ImageURL)
+		}
+		_ = s.fabricRepo.SaveEmbedding(job.FabricID, job.ImageURL, emb)
+	}
+}
+
+func (s *FabricService) EnqueueEmbeddingJob(fabricID uuid.UUID, imageURL string) {
+	if imageURL == "" {
+		return
+	}
+	select {
+	case s.embeddingQueue <- EmbeddingJob{FabricID: fabricID, ImageURL: imageURL}:
+	default:
+		go func() {
+			emb, err := FetchAndExtractVisualEmbedding(imageURL)
+			if err != nil {
+				emb = GenerateDeterministicEmbedding(imageURL)
+			}
+			_ = s.fabricRepo.SaveEmbedding(fabricID, imageURL, emb)
+		}()
 	}
 }
 
@@ -103,10 +140,9 @@ func (s *FabricService) CreateFabric(input models.FabricInput) (*models.Fabric, 
 		return nil, err
 	}
 
-	// If an image URL is present, generate and save 768-dim embedding
+	// If an image URL is present, enqueue background job to extract and save 768-dim visual embedding
 	if fabric.PrimaryImageURL != nil && *fabric.PrimaryImageURL != "" {
-		emb := GenerateDeterministicEmbedding(*fabric.PrimaryImageURL + fabric.ArticleNo + fabric.FabricName)
-		_ = s.fabricRepo.SaveEmbedding(fabric.ID, *fabric.PrimaryImageURL, emb)
+		s.EnqueueEmbeddingJob(fabric.ID, *fabric.PrimaryImageURL)
 	}
 
 	return s.fabricRepo.GetByID(fabric.ID)
@@ -148,6 +184,11 @@ func (s *FabricService) UpdateFabric(id uuid.UUID, input models.FabricInput) (*m
 	err = s.fabricRepo.Update(existing)
 	if err != nil {
 		return nil, err
+	}
+
+	// Update vector embedding in background if image URL is present
+	if existing.PrimaryImageURL != nil && *existing.PrimaryImageURL != "" {
+		s.EnqueueEmbeddingJob(existing.ID, *existing.PrimaryImageURL)
 	}
 
 	return s.fabricRepo.GetByID(id)
