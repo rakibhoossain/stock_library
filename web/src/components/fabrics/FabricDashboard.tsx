@@ -336,6 +336,7 @@ export function FabricDashboard() {
       if ("search" in newFilter) next.search = newFilter.search || "";
       if ("category_id" in newFilter) next.category_id = newFilter.category_id || "";
       if ("supplier_id" in newFilter) next.supplier_id = newFilter.supplier_id || "";
+      if ("project_id" in newFilter) next.project_id = newFilter.project_id || "";
       if ("presentation_id" in newFilter) next.presentation_id = newFilter.presentation_id || "";
       if ("min_gsm" in newFilter) next.min_gsm = newFilter.min_gsm ?? null;
       if ("max_gsm" in newFilter) next.max_gsm = newFilter.max_gsm ?? null;
@@ -356,6 +357,7 @@ export function FabricDashboard() {
       search: "",
       category_id: "",
       supplier_id: "",
+      project_id: "",
       presentation_id: "",
       min_gsm: null,
       max_gsm: null,
@@ -895,10 +897,7 @@ export function FabricDashboard() {
         categories={categories}
         suppliers={suppliers}
         projects={projects}
-        onRefreshData={() => {
-          loadMasterData();
-          loadFabrics();
-        }}
+        onRefreshData={loadMasterData}
       />
 
       {/* 4. Reverse Image Search Modal (pgvector) */}
