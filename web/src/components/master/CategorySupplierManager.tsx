@@ -106,7 +106,12 @@ export const CategorySupplierManager: React.FC<CategorySupplierManagerProps> = (
   };
 
   const handleDeleteProject = async (id: string, title: string) => {
-    if (!confirm(`Are you sure you want to delete project "${title}"?`)) return;
+    if (
+      !confirm(
+        `Are you sure you want to delete project "${title}"? Fabrics assigned to this project will be preserved with their project set to unassigned (NULL).`
+      )
+    )
+      return;
     setLoading(true);
     setError(null);
     try {

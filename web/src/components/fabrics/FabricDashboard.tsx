@@ -895,7 +895,10 @@ export function FabricDashboard() {
         categories={categories}
         suppliers={suppliers}
         projects={projects}
-        onRefreshData={loadMasterData}
+        onRefreshData={() => {
+          loadMasterData();
+          loadFabrics();
+        }}
       />
 
       {/* 4. Reverse Image Search Modal (pgvector) */}
