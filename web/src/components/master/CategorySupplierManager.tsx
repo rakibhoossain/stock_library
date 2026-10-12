@@ -32,6 +32,12 @@ export const CategorySupplierManager: React.FC<CategorySupplierManagerProps> = (
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
+  React.useEffect(() => {
+    if (isOpen) {
+      onRefreshData();
+    }
+  }, [isOpen, onRefreshData]);
+
   const filteredCategories = React.useMemo(() => {
     if (!searchQuery.trim()) return categories;
     const q = searchQuery.toLowerCase();

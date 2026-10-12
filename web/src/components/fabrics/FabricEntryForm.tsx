@@ -141,6 +141,12 @@ export const FabricEntryForm: React.FC<FabricEntryFormProps> = ({
     setLocalProjects(projects);
   }, [projects]);
 
+  useEffect(() => {
+    if (isOpen) {
+      onRefreshMasterData?.();
+    }
+  }, [isOpen, onRefreshMasterData]);
+
   const {
     register,
     handleSubmit,

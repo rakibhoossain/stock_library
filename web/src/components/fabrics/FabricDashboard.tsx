@@ -239,15 +239,17 @@ export function FabricDashboard() {
         setCurrentUser(user);
         setIsAuthChecking(false);
 
-        const [cats, sups, st, decks] = await Promise.all([
+        const [cats, sups, projs, st, decks] = await Promise.all([
           api.getCategories(),
           api.getSuppliers(),
+          api.getProjects(),
           api.getStats(),
           api.getPresentations(),
         ]);
         if (cancelled) return;
         setCategories(Array.isArray(cats) ? cats : []);
         setSuppliers(Array.isArray(sups) ? sups : []);
+        setProjects(Array.isArray(projs) ? projs : []);
         setStats(st);
         setPresentations(Array.isArray(decks) ? decks : []);
       } catch (err) {
