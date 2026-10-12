@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Fabric, Category, Supplier, DashboardStats, FabricFilter, User, Presentation } from "@/types/fabric";
+import { Fabric, Category, Supplier, Project, DashboardStats, FabricFilter, User, Presentation } from "@/types/fabric";
 import { api } from "@/lib/api";
 import { FabricTable } from "@/components/fabrics/FabricTable";
 import { FabricMobileCard } from "@/components/fabrics/FabricMobileCard";
@@ -47,6 +47,7 @@ export const fabricFilterParsers = {
   search: parseAsString.withDefault(""),
   category_id: parseAsString.withDefault(""),
   supplier_id: parseAsString.withDefault(""),
+  project_id: parseAsString.withDefault(""),
   presentation_id: parseAsString.withDefault(""),
   min_gsm: parseAsInteger,
   max_gsm: parseAsInteger,
@@ -68,6 +69,7 @@ export function FabricDashboard() {
   // Master data
   const [categories, setCategories] = useState<Category[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [presentations, setPresentations] = useState<Presentation[]>([]);
   const [stats, setStats] = useState<DashboardStats | null>(null);
 
@@ -87,6 +89,7 @@ export function FabricDashboard() {
       search: urlParams.search || undefined,
       category_id: urlParams.category_id || undefined,
       supplier_id: urlParams.supplier_id || undefined,
+      project_id: urlParams.project_id || undefined,
       presentation_id: urlParams.presentation_id || undefined,
       min_gsm: urlParams.min_gsm ?? undefined,
       max_gsm: urlParams.max_gsm ?? undefined,
@@ -173,14 +176,16 @@ export function FabricDashboard() {
         return;
       }
       setCurrentUser(user);
-      const [cats, sups, st, decks] = await Promise.all([
+      const [cats, sups, projs, st, decks] = await Promise.all([
         api.getCategories(),
         api.getSuppliers(),
+        api.getProjects(),
         api.getStats(),
         api.getPresentations(),
       ]);
       setCategories(Array.isArray(cats) ? cats : []);
       setSuppliers(Array.isArray(sups) ? sups : []);
+      setProjects(Array.isArray(projs) ? projs : []);
       setStats(st);
       setPresentations(Array.isArray(decks) ? decks : []);
     } catch (err) {
@@ -410,6 +415,7 @@ export function FabricDashboard() {
     if (filter.search) count++;
     if (filter.category_id) count++;
     if (filter.supplier_id) count++;
+    if (filter.project_id) count++;
     if (filter.presentation_id) count++;
     if (filter.min_gsm || filter.max_gsm) count++;
     if (filter.sample_holder) count++;
@@ -565,6 +571,7 @@ export function FabricDashboard() {
           onReset={handleResetFilters}
           categories={categories}
           suppliers={suppliers}
+          projects={projects}
           presentations={presentations}
           columnVisibility={columnVisibility}
           onColumnVisibilityChange={handleColumnVisibilityChange}
@@ -870,6 +877,7 @@ export function FabricDashboard() {
         }}
         categories={categories}
         suppliers={suppliers}
+        projects={projects}
         initialData={editingFabric}
         onSuccess={() => {
           loadFabrics();
@@ -884,6 +892,7 @@ export function FabricDashboard() {
         onClose={() => setIsMasterManagerOpen(false)}
         categories={categories}
         suppliers={suppliers}
+        projects={projects}
         onRefreshData={loadMasterData}
       />
 
@@ -946,6 +955,28 @@ export function FabricDashboard() {
                 />
               </div>
             </div>
+
+            {(projects || []).length > 0 && (
+              <div>
+                <label className="font-semibold text-zinc-700 dark:text-zinc-300">Project / Collection</label>
+                <div className="mt-1">
+                  <SearchableSelect
+                    options={(projects || []).map((p) => ({
+                      value: p.id,
+                      label: p.title,
+                    }))}
+                    value={filter.project_id || ""}
+                    onChange={(val) =>
+                      handleFilterChange({ project_id: val || undefined, page: 1 })
+                    }
+                    placeholder="All Projects"
+                    searchPlaceholder="Search project..."
+                    allowClear={true}
+                    clearLabel="All Projects"
+                  />
+                </div>
+              </div>
+            )}
 
             {(presentations || []).length > 0 && (
               <div>

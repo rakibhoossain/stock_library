@@ -90,6 +90,13 @@ type Supplier struct {
 	UpdatedAt     time.Time `json:"updated_at" db:"updated_at"`
 }
 
+type Project struct {
+	ID        uuid.UUID `json:"id" db:"id"`
+	Title     string    `json:"title" db:"title"`
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+}
+
 // Fabric Model
 type Fabric struct {
 	ID                  uuid.UUID            `json:"id" db:"id"`
@@ -101,6 +108,8 @@ type Fabric struct {
 	SupplierID          *uuid.UUID           `json:"supplier_id,omitempty" db:"supplier_id"`
 	SupplierName        *string              `json:"supplier_name,omitempty" db:"supplier_name"`
 	SupplierContact     *string              `json:"supplier_contact,omitempty" db:"supplier_contact"`
+	ProjectID           *uuid.UUID           `json:"project_id,omitempty" db:"project_id"`
+	ProjectTitle        *string              `json:"project_title,omitempty" db:"project_title"`
 	CompositionRaw      string               `json:"composition_raw" db:"composition_raw"`
 	CompositionBreakdown CompositionBreakdown `json:"composition_breakdown" db:"composition_breakdown"`
 	WeightGsmMin        int                  `json:"weight_gsm_min" db:"weight_gsm_min"`
@@ -133,6 +142,7 @@ type FabricInput struct {
 	FabricName         string               `json:"fabric_name" binding:"required"`
 	CategoryID         *uuid.UUID           `json:"category_id"`
 	SupplierID         *uuid.UUID           `json:"supplier_id"`
+	ProjectID          *uuid.UUID           `json:"project_id"`
 	CompositionRaw     string               `json:"composition_raw" binding:"required"`
 	Fibers             CompositionBreakdown `json:"fibers"`
 	WeightGsmMin       int                  `json:"weight_gsm_min" binding:"required"`
@@ -161,6 +171,7 @@ type FabricFilter struct {
 	Search         string  `form:"search"`
 	CategoryID     string  `form:"category_id"`
 	SupplierID     string  `form:"supplier_id"`
+	ProjectID      string  `form:"project_id"`
 	PresentationID string  `form:"presentation_id"`
 	MinGSM         *int    `form:"min_gsm"`
 	MaxGSM         *int    `form:"max_gsm"`
@@ -191,8 +202,10 @@ type DashboardStats struct {
 	TotalFabrics    int            `json:"total_fabrics"`
 	TotalSuppliers  int            `json:"total_suppliers"`
 	TotalCategories int            `json:"total_categories"`
+	TotalProjects   int            `json:"total_projects"`
 	CategoryCounts  map[string]int `json:"category_counts"`
 	SupplierCounts  map[string]int `json:"supplier_counts"`
+	ProjectCounts   map[string]int `json:"project_counts"`
 }
 
 // Presentation Models

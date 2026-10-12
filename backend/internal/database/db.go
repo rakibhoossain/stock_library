@@ -30,6 +30,14 @@ func Connect(cfg *config.Config) (*sqlx.DB, error) {
 
 func migrateSchema(db *sqlx.DB) {
 	queries := []string{
+		`CREATE TABLE IF NOT EXISTS projects (
+			id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+			title VARCHAR(150) NOT NULL UNIQUE,
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);`,
+		`ALTER TABLE fabrics ADD COLUMN IF NOT EXISTS project_id UUID REFERENCES projects(id) ON DELETE SET NULL;`,
+		`CREATE INDEX IF NOT EXISTS idx_fabrics_project_id ON fabrics (project_id);`,
 		`ALTER TABLE presentations ADD COLUMN IF NOT EXISTS welcome_notes TEXT;`,
 		`ALTER TABLE presentations ADD COLUMN IF NOT EXISTS closing_notes TEXT;`,
 		`ALTER TABLE presentations ADD COLUMN IF NOT EXISTS presenter_name VARCHAR(150);`,

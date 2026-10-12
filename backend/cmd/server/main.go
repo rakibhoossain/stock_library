@@ -39,6 +39,7 @@ func main() {
 	userRepo := repository.NewUserRepository(db)
 	catRepo := repository.NewCategoryRepository(db)
 	supRepo := repository.NewSupplierRepository(db)
+	projRepo := repository.NewProjectRepository(db)
 	fabricRepo := repository.NewFabricRepository(db)
 	presRepo := repository.NewPresentationRepository(db)
 
@@ -50,7 +51,7 @@ func main() {
 
 	// Initialize Handlers
 	authHandler := handler.NewAuthHandler(authService)
-	masterHandler := handler.NewMasterHandler(catRepo, supRepo, fabricService)
+	masterHandler := handler.NewMasterHandler(catRepo, supRepo, projRepo, fabricService)
 	fabricHandler := handler.NewFabricHandler(fabricService, exportService)
 	presHandler := handler.NewPresentationHandler(presService)
 	var storageHandler *handler.StorageHandler
@@ -92,6 +93,7 @@ func main() {
 			// Master Data
 			protected.GET("/categories", masterHandler.GetCategories)
 			protected.GET("/suppliers", masterHandler.GetSuppliers)
+			protected.GET("/projects", masterHandler.GetProjects)
 			protected.GET("/stats", masterHandler.GetStats)
 
 			// Fabrics Listing & Search
@@ -121,6 +123,11 @@ func main() {
 			protected.POST("/suppliers", masterHandler.CreateSupplier)
 			protected.PUT("/suppliers/:id", masterHandler.UpdateSupplier)
 			protected.DELETE("/suppliers/:id", masterHandler.DeleteSupplier)
+
+			// Projects Management
+			protected.POST("/projects", masterHandler.CreateProject)
+			protected.PUT("/projects/:id", masterHandler.UpdateProject)
+			protected.DELETE("/projects/:id", masterHandler.DeleteProject)
 
 			if storageHandler != nil {
 				protected.POST("/storage/presigned-url", storageHandler.GetPresignedUploadURL)

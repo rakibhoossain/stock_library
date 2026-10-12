@@ -4,6 +4,7 @@ import {
   PaginatedFabrics,
   Category,
   Supplier,
+  Project,
   DashboardStats,
   SwatchSearchResult,
   PresignedURLResponse,
@@ -93,6 +94,7 @@ export const api = {
     if (filter.search) params.set("search", filter.search);
     if (filter.category_id) params.set("category_id", filter.category_id);
     if (filter.supplier_id) params.set("supplier_id", filter.supplier_id);
+    if (filter.project_id) params.set("project_id", filter.project_id);
     if (filter.presentation_id) params.set("presentation_id", filter.presentation_id);
     if (filter.min_gsm) params.set("min_gsm", filter.min_gsm.toString());
     if (filter.max_gsm) params.set("max_gsm", filter.max_gsm.toString());
@@ -191,6 +193,30 @@ export const api = {
 
   async deleteSupplier(id: string): Promise<{ message: string }> {
     return request<{ message: string }>(`/suppliers/${id}`, {
+      method: "DELETE",
+    });
+  },
+
+  async getProjects(): Promise<Project[]> {
+    return request<Project[]>("/projects");
+  },
+
+  async createProject(data: { title: string }): Promise<Project> {
+    return request<Project>("/projects", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async updateProject(id: string, data: { title: string }): Promise<Project> {
+    return request<Project>(`/projects/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async deleteProject(id: string): Promise<{ message: string }> {
+    return request<{ message: string }>(`/projects/${id}`, {
       method: "DELETE",
     });
   },

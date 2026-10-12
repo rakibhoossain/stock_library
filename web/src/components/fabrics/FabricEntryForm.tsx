@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Category, Supplier, Fabric } from "@/types/fabric";
+import { Category, Supplier, Project, Fabric } from "@/types/fabric";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +32,7 @@ export const fabricFormSchema = z.object({
   fabric_name: z.string().trim().min(2, "Fabric structure/name is required"),
   category_id: z.string().min(1, "Please select a category"),
   supplier_id: z.string().min(1, "Please select a supplier"),
+  project_id: z.string().trim().optional().nullable(),
   composition_raw: z.string().trim().min(2, "Raw composition is required"),
   fibers: z.array(fiberItemSchema).min(1, "Add at least one fiber component"),
   weight_gsm_min: z.coerce.number().int().positive("Weight must be positive"),
@@ -67,6 +68,7 @@ interface FabricEntryFormProps {
   onClose: () => void;
   categories: Category[];
   suppliers: Supplier[];
+  projects?: Project[];
   initialData?: Fabric | null;
   onSuccess: (saved: Fabric) => void;
   onRefreshMasterData?: () => void;
@@ -96,12 +98,14 @@ export const FabricEntryForm: React.FC<FabricEntryFormProps> = ({
   onClose,
   categories,
   suppliers,
+  projects = [],
   initialData,
   onSuccess,
   onRefreshMasterData,
 }) => {
   const [localCategories, setLocalCategories] = useState<Category[]>(categories);
   const [localSuppliers, setLocalSuppliers] = useState<Supplier[]>(suppliers);
+  const [localProjects, setLocalProjects] = useState<Project[]>(projects);
 
   // Quick add states
   const [showQuickAddCategory, setShowQuickAddCategory] = useState(false);
@@ -114,6 +118,10 @@ export const FabricEntryForm: React.FC<FabricEntryFormProps> = ({
   const [newSupShortCode, setNewSupShortCode] = useState("");
   const [newSupPhone, setNewSupPhone] = useState("");
   const [isAddingSupplier, setIsAddingSupplier] = useState(false);
+
+  const [showQuickAddProject, setShowQuickAddProject] = useState(false);
+  const [newProjTitle, setNewProjTitle] = useState("");
+  const [isAddingProject, setIsAddingProject] = useState(false);
 
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -128,6 +136,10 @@ export const FabricEntryForm: React.FC<FabricEntryFormProps> = ({
   useEffect(() => {
     setLocalSuppliers(suppliers);
   }, [suppliers]);
+
+  useEffect(() => {
+    setLocalProjects(projects);
+  }, [projects]);
 
   const {
     register,
@@ -146,6 +158,7 @@ export const FabricEntryForm: React.FC<FabricEntryFormProps> = ({
       fabric_name: initialData?.fabric_name || "Single Jersey",
       category_id: initialData?.category_id || categories[0]?.id || "",
       supplier_id: initialData?.supplier_id || suppliers[0]?.id || "",
+      project_id: initialData?.project_id || "",
       composition_raw: initialData?.composition_raw || "100% Cotton",
       fibers: initialData?.composition_breakdown?.length
         ? initialData.composition_breakdown
@@ -180,6 +193,7 @@ export const FabricEntryForm: React.FC<FabricEntryFormProps> = ({
         fabric_name: initialData.fabric_name || "",
         category_id: initialData.category_id || categories[0]?.id || "",
         supplier_id: initialData.supplier_id || suppliers[0]?.id || "",
+        project_id: initialData.project_id || "",
         composition_raw: initialData.composition_raw || "",
         fibers: initialData.composition_breakdown?.length
           ? initialData.composition_breakdown
@@ -205,7 +219,7 @@ export const FabricEntryForm: React.FC<FabricEntryFormProps> = ({
       });
       setPreviewUrl(initialData.primary_image_url || null);
     }
-  }, [initialData, categories, suppliers, reset]);
+  }, [initialData, categories, suppliers, projects, reset]);
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -292,13 +306,37 @@ export const FabricEntryForm: React.FC<FabricEntryFormProps> = ({
     }
   };
 
+  // Quick Add Project
+  const handleCreateProject = async () => {
+    if (!newProjTitle.trim()) return;
+    setIsAddingProject(true);
+    try {
+      const created = await api.createProject({
+        title: newProjTitle.trim(),
+      });
+      setLocalProjects((prev) => [...prev, created]);
+      setValue("project_id", created.id);
+      setNewProjTitle("");
+      setShowQuickAddProject(false);
+      onRefreshMasterData?.();
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Failed to create project");
+    } finally {
+      setIsAddingProject(false);
+    }
+  };
+
   const onSubmit = async (values: FabricFormValues) => {
     try {
+      const payload = {
+        ...values,
+        project_id: values.project_id ? values.project_id : null,
+      };
       let saved: Fabric;
       if (initialData?.id) {
-        saved = await api.updateFabric(initialData.id, values);
+        saved = await api.updateFabric(initialData.id, payload);
       } else {
-        saved = await api.createFabric(values);
+        saved = await api.createFabric(payload);
       }
       onSuccess(saved);
       onClose();
@@ -489,6 +527,77 @@ export const FabricEntryForm: React.FC<FabricEntryFormProps> = ({
                   {errors.category_id && (
                     <p className="text-rose-500 text-[11px] mt-1">{errors.category_id.message}</p>
                   )}
+                </div>
+              )}
+            </div>
+
+            {/* Project (Optional) with Quick-Add */}
+            <div>
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                  Project / Collection (Optional)
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowQuickAddProject(!showQuickAddProject)}
+                  className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-0.5"
+                >
+                  <Plus className="h-3 w-3" />
+                  Quick Add
+                </button>
+              </div>
+
+              {showQuickAddProject ? (
+                <div className="mt-1 p-2.5 rounded-xl border border-indigo-200 bg-indigo-50/50 dark:bg-indigo-950/20 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-indigo-700 dark:text-indigo-300 uppercase">
+                      New Project
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowQuickAddProject(false)}
+                      className="text-zinc-400 hover:text-zinc-600"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                  <Input
+                    value={newProjTitle}
+                    onChange={(e) => setNewProjTitle(e.target.value)}
+                    placeholder="Project title (e.g. SS26 Core)"
+                    className="h-8 text-xs bg-white dark:bg-zinc-900"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={isAddingProject || !newProjTitle.trim()}
+                    onClick={handleCreateProject}
+                    className="w-full h-7 text-xs rounded-lg"
+                  >
+                    {isAddingProject ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <>
+                        <Check className="h-3 w-3 mr-1" />
+                        Save & Select Project
+                      </>
+                    )}
+                  </Button>
+                </div>
+              ) : (
+                <div className="mt-1">
+                  <SearchableSelect
+                    options={(localProjects || []).map((p) => ({
+                      value: p.id,
+                      label: p.title,
+                    }))}
+                    value={watch("project_id") || ""}
+                    onChange={(val) => setValue("project_id", val || undefined, { shouldValidate: true })}
+                    placeholder="Select project (optional)..."
+                    searchPlaceholder="Type project title..."
+                    allowClear={true}
+                    clearLabel="No Project / None"
+                  />
                 </div>
               )}
             </div>

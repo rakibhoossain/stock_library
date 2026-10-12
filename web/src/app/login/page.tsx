@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Lock, Mail, Loader2, Sparkles, AlertCircle, ShieldCheck } from "lucide-react";
+import { Lock, Mail, Loader2, Sparkles, AlertCircle } from "lucide-react";
 import Image from "next/image";
 
 export default function LoginPage() {
@@ -45,12 +45,6 @@ export default function LoginPage() {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleQuickFill = (demoEmail: string) => {
-    setEmail(demoEmail);
-    setPassword("password123");
-    setErrorMessage(null);
   };
 
   return (
@@ -140,25 +134,6 @@ export default function LoginPage() {
               )}
             </Button>
           </form>
-
-          {/* Quick Demo Credentials */}
-          <div className="mt-8 pt-6 border-t border-zinc-800/80">
-            <p className="text-[11px] font-medium text-zinc-400 text-center mb-3">
-              Fast Demo Accounts
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => handleQuickFill("admin@stocklibrary.com")}
-                className="p-2.5 text-left rounded-xl border border-zinc-800 bg-zinc-950/40 hover:bg-zinc-800/60 transition-colors text-xs"
-              >
-                <div className="flex items-center gap-1.5 text-indigo-400 font-semibold mb-0.5">
-                  <ShieldCheck className="h-3.5 w-3.5" />
-                  Admin
-                </div>
-              </button>
-            </div>
-          </div>
         </div>
       </div>
     </div>

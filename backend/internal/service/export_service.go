@@ -20,7 +20,7 @@ func (s *ExportService) GenerateCSV(fabrics []models.Fabric) ([]byte, error) {
 	writer := csv.NewWriter(&buf)
 
 	headers := []string{
-		"Article No", "Aliases", "Fabric Name", "Category", "Supplier",
+		"Article No", "Aliases", "Fabric Name", "Category", "Supplier", "Project",
 		"Contact Person", "Composition", "Weight (GSM)", "Width",
 		"Sample Location", "Price", "Unit", "Price Status", "MOQ", "MCQ", "Stock Note",
 	}
@@ -36,6 +36,10 @@ func (s *ExportService) GenerateCSV(fabrics []models.Fabric) ([]byte, error) {
 		sup := ""
 		if f.SupplierName != nil {
 			sup = *f.SupplierName
+		}
+		project := ""
+		if f.ProjectTitle != nil {
+			project = *f.ProjectTitle
 		}
 		contact := ""
 		if f.SupplierContact != nil {
@@ -88,6 +92,7 @@ func (s *ExportService) GenerateCSV(fabrics []models.Fabric) ([]byte, error) {
 			f.FabricName,
 			cat,
 			sup,
+			project,
 			contact,
 			f.CompositionRaw,
 			gsmStr,
@@ -141,7 +146,7 @@ func (s *ExportService) GenerateXLSX(fabrics []models.Fabric) ([]byte, error) {
 	}
 
 	headers := []string{
-		"SI", "Article No", "Aliases", "Fabric Name", "Category", "Supplier",
+		"SI", "Article No", "Aliases", "Fabric Name", "Category", "Supplier", "Project",
 		"Contact", "Composition", "GSM", "Width", "Sample Location",
 		"Price", "Unit", "Status", "MOQ", "MCQ", "Stock Remarks",
 	}
@@ -165,6 +170,10 @@ func (s *ExportService) GenerateXLSX(fabrics []models.Fabric) ([]byte, error) {
 		sup := ""
 		if item.SupplierName != nil {
 			sup = *item.SupplierName
+		}
+		project := ""
+		if item.ProjectTitle != nil {
+			project = *item.ProjectTitle
 		}
 		contact := ""
 		if item.SupplierContact != nil {
@@ -217,25 +226,26 @@ func (s *ExportService) GenerateXLSX(fabrics []models.Fabric) ([]byte, error) {
 		f.SetCellValue(sheetName, fmt.Sprintf("D%d", row), item.FabricName)
 		f.SetCellValue(sheetName, fmt.Sprintf("E%d", row), cat)
 		f.SetCellValue(sheetName, fmt.Sprintf("F%d", row), sup)
-		f.SetCellValue(sheetName, fmt.Sprintf("G%d", row), contact)
-		f.SetCellValue(sheetName, fmt.Sprintf("H%d", row), item.CompositionRaw)
-		f.SetCellValue(sheetName, fmt.Sprintf("I%d", row), gsmStr)
-		f.SetCellValue(sheetName, fmt.Sprintf("J%d", row), width)
-		f.SetCellValue(sheetName, fmt.Sprintf("K%d", row), location)
-		f.SetCellValue(sheetName, fmt.Sprintf("L%d", row), priceStr)
-		f.SetCellValue(sheetName, fmt.Sprintf("M%d", row), item.PriceUnit)
-		f.SetCellValue(sheetName, fmt.Sprintf("N%d", row), item.PriceStatus)
-		f.SetCellValue(sheetName, fmt.Sprintf("O%d", row), moq)
-		f.SetCellValue(sheetName, fmt.Sprintf("P%d", row), mcq)
-		f.SetCellValue(sheetName, fmt.Sprintf("Q%d", row), stockNote)
+		f.SetCellValue(sheetName, fmt.Sprintf("G%d", row), project)
+		f.SetCellValue(sheetName, fmt.Sprintf("H%d", row), contact)
+		f.SetCellValue(sheetName, fmt.Sprintf("I%d", row), item.CompositionRaw)
+		f.SetCellValue(sheetName, fmt.Sprintf("J%d", row), gsmStr)
+		f.SetCellValue(sheetName, fmt.Sprintf("K%d", row), width)
+		f.SetCellValue(sheetName, fmt.Sprintf("L%d", row), location)
+		f.SetCellValue(sheetName, fmt.Sprintf("M%d", row), priceStr)
+		f.SetCellValue(sheetName, fmt.Sprintf("N%d", row), item.PriceUnit)
+		f.SetCellValue(sheetName, fmt.Sprintf("O%d", row), item.PriceStatus)
+		f.SetCellValue(sheetName, fmt.Sprintf("P%d", row), moq)
+		f.SetCellValue(sheetName, fmt.Sprintf("Q%d", row), mcq)
+		f.SetCellValue(sheetName, fmt.Sprintf("R%d", row), stockNote)
 		_ = f.SetRowHeight(sheetName, row, 20)
 	}
 
 	// Auto-fit column widths
 	colWidths := map[string]float64{
-		"A": 6, "B": 15, "C": 14, "D": 16, "E": 18, "F": 22,
-		"G": 16, "H": 34, "I": 12, "J": 12, "K": 18, "L": 12,
-		"M": 8, "N": 14, "O": 12, "P": 14, "Q": 24,
+		"A": 6, "B": 15, "C": 14, "D": 16, "E": 18, "F": 22, "G": 18,
+		"H": 16, "I": 34, "J": 12, "K": 12, "L": 18, "M": 12,
+		"N": 8, "O": 14, "P": 12, "Q": 14, "R": 24,
 	}
 	for col, width := range colWidths {
 		_ = f.SetColWidth(sheetName, col, col, width)

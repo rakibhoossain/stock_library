@@ -25,6 +25,7 @@ const baseFabricSelect = `
 		f.id, f.article_no, f.article_aliases, f.fabric_name,
 		f.category_id, c.name AS category_name,
 		f.supplier_id, s.name AS supplier_name, s.contact_person AS supplier_contact,
+		f.project_id, p.title AS project_title,
 		f.composition_raw, f.composition_breakdown,
 		f.weight_gsm_min, f.weight_gsm_max, f.width_inches, f.construction, f.shrinkage, f.finish_type,
 		f.sample_holder, f.rack_location, f.physical_tag, f.available_stock_note,
@@ -34,6 +35,7 @@ const baseFabricSelect = `
 	FROM fabrics f
 	LEFT JOIN categories c ON f.category_id = c.id
 	LEFT JOIN suppliers s ON f.supplier_id = s.id
+	LEFT JOIN projects p ON f.project_id = p.id
 `
 
 func (r *FabricRepository) List(filter models.FabricFilter) ([]models.Fabric, int, error) {
@@ -63,6 +65,14 @@ func (r *FabricRepository) List(filter models.FabricFilter) ([]models.Fabric, in
 		if supID, err := uuid.Parse(filter.SupplierID); err == nil && supID != uuid.Nil {
 			whereClauses = append(whereClauses, fmt.Sprintf("f.supplier_id = $%d", argIdx))
 			args = append(args, supID)
+			argIdx++
+		}
+	}
+
+	if filter.ProjectID != "" {
+		if projID, err := uuid.Parse(filter.ProjectID); err == nil && projID != uuid.Nil {
+			whereClauses = append(whereClauses, fmt.Sprintf("f.project_id = $%d", argIdx))
+			args = append(args, projID)
 			argIdx++
 		}
 	}
@@ -126,6 +136,8 @@ func (r *FabricRepository) List(filter models.FabricFilter) ([]models.Fabric, in
 			sortBy = "s.name"
 		case "category_name":
 			sortBy = "c.name"
+		case "project_title", "project_name":
+			sortBy = "p.title"
 		case "created_at":
 			sortBy = "f.created_at"
 		}
@@ -191,7 +203,7 @@ func (r *FabricRepository) Create(fabric *models.Fabric) error {
 
 	query := `
 		INSERT INTO fabrics (
-			id, article_no, article_aliases, fabric_name, category_id, supplier_id,
+			id, article_no, article_aliases, fabric_name, category_id, supplier_id, project_id,
 			composition_raw, composition_breakdown, weight_gsm_min, weight_gsm_max,
 			width_inches, construction, shrinkage, finish_type,
 			sample_holder, rack_location, physical_tag, available_stock_note,
@@ -199,18 +211,18 @@ func (r *FabricRepository) Create(fabric *models.Fabric) error {
 			moq, mcq, primary_image_url, hanger_card_image_url,
 			created_at, updated_at
 		) VALUES (
-			$1, $2, $3, $4, $5, $6,
-			$7, $8, $9, $10,
-			$11, $12, $13, $14,
-			$15, $16, $17, $18,
-			$19, $20, $21, $22, $23,
-			$24, $25, $26, $27,
+			$1, $2, $3, $4, $5, $6, $7,
+			$8, $9, $10, $11,
+			$12, $13, $14, $15,
+			$16, $17, $18, $19,
+			$20, $21, $22, $23, $24,
+			$25, $26, $27, $28,
 			NOW(), NOW()
 		)
 		RETURNING created_at, updated_at
 	`
 	return r.db.QueryRow(query,
-		fabric.ID, fabric.ArticleNo, fabric.ArticleAliases, fabric.FabricName, fabric.CategoryID, fabric.SupplierID,
+		fabric.ID, fabric.ArticleNo, fabric.ArticleAliases, fabric.FabricName, fabric.CategoryID, fabric.SupplierID, fabric.ProjectID,
 		fabric.CompositionRaw, fabric.CompositionBreakdown, fabric.WeightGsmMin, fabric.WeightGsmMax,
 		fabric.WidthInches, fabric.Construction, fabric.Shrinkage, fabric.FinishType,
 		fabric.SampleHolder, fabric.RackLocation, fabric.PhysicalTag, fabric.AvailableStockNote,
@@ -227,33 +239,34 @@ func (r *FabricRepository) Update(fabric *models.Fabric) error {
 			fabric_name = $4,
 			category_id = $5,
 			supplier_id = $6,
-			composition_raw = $7,
-			composition_breakdown = $8,
-			weight_gsm_min = $9,
-			weight_gsm_max = $10,
-			width_inches = $11,
-			construction = $12,
-			shrinkage = $13,
-			finish_type = $14,
-			sample_holder = $15,
-			rack_location = $16,
-			physical_tag = $17,
-			available_stock_note = $18,
-			price_status = $19,
-			price_amount = $20,
-			price_currency = $21,
-			price_unit = $22,
-			price_notes = $23,
-			moq = $24,
-			mcq = $25,
-			primary_image_url = $26,
-			hanger_card_image_url = $27,
+			project_id = $7,
+			composition_raw = $8,
+			composition_breakdown = $9,
+			weight_gsm_min = $10,
+			weight_gsm_max = $11,
+			width_inches = $12,
+			construction = $13,
+			shrinkage = $14,
+			finish_type = $15,
+			sample_holder = $16,
+			rack_location = $17,
+			physical_tag = $18,
+			available_stock_note = $19,
+			price_status = $20,
+			price_amount = $21,
+			price_currency = $22,
+			price_unit = $23,
+			price_notes = $24,
+			moq = $25,
+			mcq = $26,
+			primary_image_url = $27,
+			hanger_card_image_url = $28,
 			updated_at = NOW()
 		WHERE id = $1
 		RETURNING updated_at
 	`
 	return r.db.QueryRow(query,
-		fabric.ID, fabric.ArticleNo, fabric.ArticleAliases, fabric.FabricName, fabric.CategoryID, fabric.SupplierID,
+		fabric.ID, fabric.ArticleNo, fabric.ArticleAliases, fabric.FabricName, fabric.CategoryID, fabric.SupplierID, fabric.ProjectID,
 		fabric.CompositionRaw, fabric.CompositionBreakdown, fabric.WeightGsmMin, fabric.WeightGsmMax,
 		fabric.WidthInches, fabric.Construction, fabric.Shrinkage, fabric.FinishType,
 		fabric.SampleHolder, fabric.RackLocation, fabric.PhysicalTag, fabric.AvailableStockNote,
@@ -289,6 +302,7 @@ func (r *FabricRepository) SearchByVector(embedding []float32, limit int) ([]mod
 			f.id, f.article_no, f.article_aliases, f.fabric_name,
 			f.category_id, c.name AS category_name,
 			f.supplier_id, s.name AS supplier_name, s.contact_person AS supplier_contact,
+			f.project_id, p.title AS project_title,
 			f.composition_raw, f.composition_breakdown,
 			f.weight_gsm_min, f.weight_gsm_max, f.width_inches, f.construction, f.shrinkage, f.finish_type,
 			f.sample_holder, f.rack_location, f.physical_tag, f.available_stock_note,
@@ -300,6 +314,7 @@ func (r *FabricRepository) SearchByVector(embedding []float32, limit int) ([]mod
 		JOIN fabrics f ON f.id = e.fabric_id
 		LEFT JOIN categories c ON f.category_id = c.id
 		LEFT JOIN suppliers s ON f.supplier_id = s.id
+		LEFT JOIN projects p ON f.project_id = p.id
 		ORDER BY e.embedding <=> $1 ASC
 		LIMIT $2
 	`
@@ -329,11 +344,13 @@ func (r *FabricRepository) GetStats() (*models.DashboardStats, error) {
 	stats := &models.DashboardStats{
 		CategoryCounts: make(map[string]int),
 		SupplierCounts: make(map[string]int),
+		ProjectCounts:  make(map[string]int),
 	}
 
 	_ = r.db.Get(&stats.TotalFabrics, "SELECT COUNT(*) FROM fabrics")
 	_ = r.db.Get(&stats.TotalSuppliers, "SELECT COUNT(*) FROM suppliers")
 	_ = r.db.Get(&stats.TotalCategories, "SELECT COUNT(*) FROM categories")
+	_ = r.db.Get(&stats.TotalProjects, "SELECT COUNT(*) FROM projects")
 
 	type countRow struct {
 		Name  string `db:"name"`
@@ -364,6 +381,19 @@ func (r *FabricRepository) GetStats() (*models.DashboardStats, error) {
 	`)
 	for _, row := range supRows {
 		stats.SupplierCounts[row.Name] = row.Count
+	}
+
+	var projRows []countRow
+	_ = r.db.Select(&projRows, `
+		SELECT COALESCE(p.title, 'No Project') as name, COUNT(f.id) as count
+		FROM fabrics f
+		LEFT JOIN projects p ON f.project_id = p.id
+		GROUP BY p.title
+		ORDER BY count DESC
+		LIMIT 10
+	`)
+	for _, row := range projRows {
+		stats.ProjectCounts[row.Name] = row.Count
 	}
 
 	return stats, nil

@@ -1,20 +1,21 @@
 "use client";
 
 import React, { useState } from "react";
-import { Category, Supplier } from "@/types/fabric";
+import { Category, Supplier, Project } from "@/types/fabric";
 import { api } from "@/lib/api";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Layers, Building2, Plus, Edit2, Trash2, Loader2, Check, X, Search } from "lucide-react";
+import { Layers, Building2, FolderKanban, Plus, Edit2, Trash2, Loader2, Check, X, Search } from "lucide-react";
 
 interface CategorySupplierManagerProps {
   isOpen: boolean;
   onClose: () => void;
   categories: Category[];
   suppliers: Supplier[];
+  projects?: Project[];
   onRefreshData: () => void;
-  defaultTab?: "categories" | "suppliers";
+  defaultTab?: "categories" | "suppliers" | "projects";
 }
 
 export const CategorySupplierManager: React.FC<CategorySupplierManagerProps> = ({
@@ -22,10 +23,11 @@ export const CategorySupplierManager: React.FC<CategorySupplierManagerProps> = (
   onClose,
   categories,
   suppliers,
+  projects = [],
   onRefreshData,
   defaultTab = "categories",
 }) => {
-  const [activeTab, setActiveTab] = useState<"categories" | "suppliers">(defaultTab);
+  const [activeTab, setActiveTab] = useState<"categories" | "suppliers" | "projects">(defaultTab);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -51,6 +53,12 @@ export const CategorySupplierManager: React.FC<CategorySupplierManagerProps> = (
     );
   }, [suppliers, searchQuery]);
 
+  const filteredProjects = React.useMemo(() => {
+    if (!searchQuery.trim()) return projects;
+    const q = searchQuery.toLowerCase();
+    return projects.filter((p) => p.title.toLowerCase().includes(q));
+  }, [projects, searchQuery]);
+
   // Category Edit / Create state
   const [catName, setCatName] = useState("");
   const [catGender, setCatGender] = useState("Men");
@@ -64,6 +72,52 @@ export const CategorySupplierManager: React.FC<CategorySupplierManagerProps> = (
   const [supPhone, setSupPhone] = useState("");
   const [supCountry, setSupCountry] = useState("Bangladesh");
   const [editingSupId, setEditingSupId] = useState<string | null>(null);
+
+  // Project Edit / Create state
+  const [projTitle, setProjTitle] = useState("");
+  const [editingProjId, setEditingProjId] = useState<string | null>(null);
+
+  // Project Handlers
+  const handleSaveProject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!projTitle.trim()) return;
+    setLoading(true);
+    setError(null);
+    try {
+      if (editingProjId) {
+        await api.updateProject(editingProjId, { title: projTitle.trim() });
+      } else {
+        await api.createProject({ title: projTitle.trim() });
+      }
+      setProjTitle("");
+      setEditingProjId(null);
+      onRefreshData();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to save project");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteProject = async (id: string, title: string) => {
+    if (!confirm(`Are you sure you want to delete project "${title}"?`)) return;
+    setLoading(true);
+    setError(null);
+    try {
+      await api.deleteProject(id);
+      onRefreshData();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to delete project");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const startEditProject = (proj: Project) => {
+    setEditingProjId(proj.id);
+    setProjTitle(proj.title);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   // Category Handlers
   const handleSaveCategory = async (e: React.FormEvent) => {
@@ -205,6 +259,19 @@ export const CategorySupplierManager: React.FC<CategorySupplierManagerProps> = (
           >
             <Building2 className="h-4 w-4" />
             Suppliers & Mills ({suppliers.length})
+          </Button>
+          <Button
+            type="button"
+            variant={activeTab === "projects" ? "default" : "outline"}
+            size="sm"
+            onClick={() => {
+              setActiveTab("projects");
+              setError(null);
+            }}
+            className="rounded-xl gap-2 text-xs"
+          >
+            <FolderKanban className="h-4 w-4" />
+            Projects ({projects.length})
           </Button>
         </div>
 
@@ -570,6 +637,141 @@ export const CategorySupplierManager: React.FC<CategorySupplierManagerProps> = (
                           onClick={() => handleDeleteSupplier(sup.id, sup.name)}
                           className="h-7 w-7 p-0 text-zinc-400 hover:text-rose-600"
                           title="Delete supplier"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 3: PROJECTS */}
+        {activeTab === "projects" && (
+          <div className="space-y-6 pt-2">
+            {/* Create/Edit Form */}
+            <form
+              onSubmit={handleSaveProject}
+              className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 space-y-3"
+            >
+              <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-500">
+                {editingProjId ? "Edit Project" : "Add New Project"}
+              </h4>
+              <div>
+                <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                  Project Title *
+                </label>
+                <Input
+                  value={projTitle}
+                  onChange={(e) => setProjTitle(e.target.value)}
+                  placeholder="e.g. SS26 Core, Winter Outerwear, Tommy Hilfiger 2026"
+                  className="mt-1 text-xs"
+                  required
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-1">
+                {editingProjId && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setEditingProjId(null);
+                      setProjTitle("");
+                    }}
+                    className="h-8 text-xs rounded-lg"
+                  >
+                    <X className="h-3.5 w-3.5 mr-1" />
+                    Cancel
+                  </Button>
+                )}
+                <Button
+                  type="submit"
+                  disabled={loading || !projTitle.trim()}
+                  size="sm"
+                  className="h-8 text-xs rounded-lg px-4"
+                >
+                  {loading ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : editingProjId ? (
+                    <>
+                      <Check className="h-3.5 w-3.5 mr-1" />
+                      Update Project
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="h-3.5 w-3.5 mr-1" />
+                      Add Project
+                    </>
+                  )}
+                </Button>
+              </div>
+            </form>
+
+            {/* Existing Projects List with Search */}
+            <div className="space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <h4 className="text-xs font-bold text-zinc-700 dark:text-zinc-300">
+                  Existing Projects ({filteredProjects.length} / {projects.length})
+                </h4>
+                <div className="relative w-full sm:w-64">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400" />
+                  <Input
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search project title..."
+                    className="pl-8 h-8 text-xs rounded-xl bg-zinc-50 dark:bg-zinc-900"
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery("")}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {filteredProjects.length === 0 ? (
+                <div className="py-8 text-center text-xs text-zinc-400 rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800">
+                  {searchQuery ? `No projects found matching "${searchQuery}"` : "No projects created yet"}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-72 overflow-y-auto pr-1">
+                  {filteredProjects.map((proj) => (
+                    <div
+                      key={proj.id}
+                      className="p-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 hover:bg-zinc-50 transition-colors flex items-center justify-between"
+                    >
+                      <div className="min-w-0 pr-2">
+                        <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100 truncate">
+                          {proj.title}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => startEditProject(proj)}
+                          className="h-7 w-7 p-0 text-zinc-600 hover:text-indigo-600"
+                          title="Edit project"
+                        >
+                          <Edit2 className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteProject(proj.id, proj.title)}
+                          className="h-7 w-7 p-0 text-zinc-400 hover:text-rose-600"
+                          title="Delete project"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>

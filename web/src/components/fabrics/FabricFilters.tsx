@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Category, Supplier, FabricFilter, Presentation } from "@/types/fabric";
+import { Category, Supplier, Project, FabricFilter, Presentation } from "@/types/fabric";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { SearchableSelect } from "@/components/ui/searchable-select";
@@ -30,6 +30,7 @@ interface FabricFiltersProps {
   onReset: () => void;
   categories: Category[];
   suppliers: Supplier[];
+  projects?: Project[];
   presentations?: Presentation[];
   columnVisibility: VisibilityState;
   onColumnVisibilityChange: (visibility: VisibilityState) => void;
@@ -45,6 +46,7 @@ export const FabricFilters: React.FC<FabricFiltersProps> = ({
   onReset,
   categories,
   suppliers,
+  projects = [],
   presentations = [],
   columnVisibility,
   onColumnVisibilityChange,
@@ -58,6 +60,7 @@ export const FabricFilters: React.FC<FabricFiltersProps> = ({
     { id: "fabric_name", label: "Structure / Name" },
     { id: "category_name", label: "Category" },
     { id: "supplier_name", label: "Supplier & Contact" },
+    { id: "project_title", label: "Project" },
     { id: "composition_raw", label: "Composition" },
     { id: "weight_gsm_min", label: "Weight (GSM)" },
     { id: "width_inches", label: "Width" },
@@ -220,6 +223,25 @@ export const FabricFilters: React.FC<FabricFiltersProps> = ({
             className="h-9 rounded-xl text-xs"
           />
         </div>
+
+        {/* Searchable Project Filter */}
+        {projects.length > 0 && (
+          <div className="w-48">
+            <SearchableSelect
+              options={projects.map((p) => ({
+                value: p.id,
+                label: p.title,
+              }))}
+              value={filter.project_id || ""}
+              onChange={(val) => onFilterChange({ project_id: val || undefined, page: 1 })}
+              placeholder="All Projects"
+              searchPlaceholder="Filter by project..."
+              allowClear={true}
+              clearLabel="All Projects"
+              className="h-9 rounded-xl text-xs"
+            />
+          </div>
+        )}
 
         {/* Searchable Presentation Deck Filter */}
         {presentations.length > 0 && (

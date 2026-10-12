@@ -57,7 +57,15 @@ CREATE TABLE IF NOT EXISTS suppliers (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 4. Fabrics Table
+-- 4. Projects Table
+CREATE TABLE IF NOT EXISTS projects (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    title VARCHAR(150) NOT NULL UNIQUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 5. Fabrics Table
 CREATE TABLE IF NOT EXISTS fabrics (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     article_no VARCHAR(100) NOT NULL,
@@ -65,6 +73,7 @@ CREATE TABLE IF NOT EXISTS fabrics (
     fabric_name VARCHAR(120) NOT NULL DEFAULT 'Standard Knit',
     category_id UUID REFERENCES categories(id) ON DELETE SET NULL,
     supplier_id UUID REFERENCES suppliers(id) ON DELETE SET NULL,
+    project_id UUID REFERENCES projects(id) ON DELETE SET NULL,
     
     -- Technical Specifications
     composition_raw TEXT NOT NULL,
@@ -138,6 +147,7 @@ CREATE INDEX IF NOT EXISTS idx_fabrics_name_trgm ON fabrics USING gin (fabric_na
 CREATE INDEX IF NOT EXISTS idx_fabrics_comp_raw ON fabrics USING gin (composition_raw gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS idx_fabrics_category_id ON fabrics (category_id);
 CREATE INDEX IF NOT EXISTS idx_fabrics_supplier_id ON fabrics (supplier_id);
+CREATE INDEX IF NOT EXISTS idx_fabrics_project_id ON fabrics (project_id);
 CREATE INDEX IF NOT EXISTS idx_fabrics_weight ON fabrics (weight_gsm_min, weight_gsm_max);
 CREATE INDEX IF NOT EXISTS idx_fabrics_price ON fabrics (price_amount);
 

@@ -21,6 +21,7 @@ import {
   RotateCcw,
   X,
   Maximize2,
+  FolderKanban,
 } from "lucide-react";
 import { generateFabricPresentationDeck } from "@/lib/pptx-export";
 
@@ -99,6 +100,12 @@ export const FabricDetailModal: React.FC<FabricDetailModalProps> = ({
                 <span className="px-2.5 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 text-[11px] font-bold uppercase tracking-wider border border-indigo-200 dark:border-indigo-800/80">
                   {fabric.category_name || "General Fabric"}
                 </span>
+                {fabric.project_title && (
+                  <span className="px-2.5 py-0.5 rounded-full bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 text-[11px] font-bold tracking-wider border border-purple-200 dark:border-purple-800/80 flex items-center gap-1">
+                    <FolderKanban className="h-3 w-3" />
+                    {fabric.project_title}
+                  </span>
+                )}
                 <Badge
                   variant={fabric.price_amount ? "success" : "warning"}
                   className="text-[11px] font-semibold"
@@ -259,6 +266,19 @@ export const FabricDetailModal: React.FC<FabricDetailModalProps> = ({
                   </div>
                 )}
               </div>
+
+              {/* Project Information Card */}
+              {fabric.project_title && (
+                <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 space-y-1.5 text-xs shadow-2xs">
+                  <div className="flex items-center gap-1.5 text-zinc-500 font-semibold text-[11px] uppercase tracking-wider">
+                    <FolderKanban className="h-3.5 w-3.5 text-purple-600" />
+                    Project / Collection
+                  </div>
+                  <div className="font-bold text-sm text-zinc-900 dark:text-zinc-100">
+                    {fabric.project_title}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Right Column: Structured Specifications Table */}

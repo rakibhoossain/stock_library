@@ -13,17 +13,20 @@ import (
 type MasterHandler struct {
 	catRepo       *repository.CategoryRepository
 	supRepo       *repository.SupplierRepository
+	projRepo      *repository.ProjectRepository
 	fabricService *service.FabricService
 }
 
 func NewMasterHandler(
 	catRepo *repository.CategoryRepository,
 	supRepo *repository.SupplierRepository,
+	projRepo *repository.ProjectRepository,
 	fabricService *service.FabricService,
 ) *MasterHandler {
 	return &MasterHandler{
 		catRepo:       catRepo,
 		supRepo:       supRepo,
+		projRepo:      projRepo,
 		fabricService: fabricService,
 	}
 }
@@ -198,6 +201,75 @@ func (h *MasterHandler) DeleteSupplier(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Supplier deleted successfully"})
+}
+
+// Project Endpoints
+func (h *MasterHandler) GetProjects(c *gin.Context) {
+	projects, err := h.projRepo.GetAll()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch projects"})
+		return
+	}
+	c.JSON(http.StatusOK, projects)
+}
+
+func (h *MasterHandler) CreateProject(c *gin.Context) {
+	var input struct {
+		Title string `json:"title" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project payload", "details": err.Error()})
+		return
+	}
+
+	proj, err := h.projRepo.FindOrCreate(input.Title)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create project", "details": err.Error()})
+		return
+	}
+	c.JSON(http.StatusCreated, proj)
+}
+
+func (h *MasterHandler) UpdateProject(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		return
+	}
+
+	var input struct {
+		Title string `json:"title" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project payload"})
+		return
+	}
+
+	proj := &models.Project{
+		ID:    id,
+		Title: input.Title,
+	}
+	if err := h.projRepo.Update(proj); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update project"})
+		return
+	}
+	c.JSON(http.StatusOK, proj)
+}
+
+func (h *MasterHandler) DeleteProject(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		return
+	}
+
+	if err := h.projRepo.Delete(id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete project"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Project deleted successfully"})
 }
 
 // Stats Endpoint

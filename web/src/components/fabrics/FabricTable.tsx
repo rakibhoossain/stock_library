@@ -218,6 +218,30 @@ export const FabricTable: React.FC<FabricTableProps> = ({
         },
       },
       {
+        accessorKey: "project_title",
+        header: ({ column }) => (
+          <button
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="flex items-center gap-1 font-semibold text-zinc-900 dark:text-zinc-100 hover:text-indigo-600"
+          >
+            Project
+            <ArrowUpDown className="h-3.5 w-3.5 text-zinc-400" />
+          </button>
+        ),
+        cell: ({ row }) => {
+          const project = row.original.project_title;
+          if (!project) return <span className="text-zinc-400 text-xs">-</span>;
+          return (
+            <Badge
+              variant="outline"
+              className="text-xs font-medium border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 bg-indigo-50/50 dark:bg-indigo-950/30"
+            >
+              {project}
+            </Badge>
+          );
+        },
+      },
+      {
         accessorKey: "composition_raw",
         header: "Composition",
         cell: ({ row }) => (

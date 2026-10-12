@@ -98,6 +98,7 @@ func (s *FabricService) CreateFabric(input models.FabricInput) (*models.Fabric, 
 		FabricName:          strings.TrimSpace(input.FabricName),
 		CategoryID:          input.CategoryID,
 		SupplierID:          input.SupplierID,
+		ProjectID:           input.ProjectID,
 		CompositionRaw:      strings.TrimSpace(input.CompositionRaw),
 		CompositionBreakdown: input.Fibers,
 		WeightGsmMin:        input.WeightGsmMin,
@@ -159,6 +160,7 @@ func (s *FabricService) UpdateFabric(id uuid.UUID, input models.FabricInput) (*m
 	existing.FabricName = strings.TrimSpace(input.FabricName)
 	existing.CategoryID = input.CategoryID
 	existing.SupplierID = input.SupplierID
+	existing.ProjectID = input.ProjectID
 	existing.CompositionRaw = strings.TrimSpace(input.CompositionRaw)
 	existing.CompositionBreakdown = input.Fibers
 	existing.WeightGsmMin = input.WeightGsmMin

@@ -20,6 +20,13 @@ export interface Supplier {
   country: string;
 }
 
+export interface Project {
+  id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Fabric {
   id: string;
   article_no: string;
@@ -30,6 +37,8 @@ export interface Fabric {
   supplier_id?: string;
   supplier_name?: string;
   supplier_contact?: string;
+  project_id?: string;
+  project_title?: string;
   composition_raw: string;
   composition_breakdown: FiberItem[];
   weight_gsm_min: number;
@@ -59,6 +68,7 @@ export interface FabricFilter {
   search?: string;
   category_id?: string;
   supplier_id?: string;
+  project_id?: string;
   presentation_id?: string;
   min_gsm?: number;
   max_gsm?: number;
@@ -87,8 +97,10 @@ export interface DashboardStats {
   total_fabrics: number;
   total_suppliers: number;
   total_categories: number;
+  total_projects: number;
   category_counts: Record<string, number>;
   supplier_counts: Record<string, number>;
+  project_counts: Record<string, number>;
 }
 
 export interface PresignedURLResponse {
